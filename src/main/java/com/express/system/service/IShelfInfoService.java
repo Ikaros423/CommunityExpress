@@ -13,4 +13,19 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface IShelfInfoService extends IService<ShelfInfo> {
 
+    /**
+     * 推荐货架
+     * @param sizeType 快递规格
+     * @return 推荐货架
+     */
+    ShelfInfo getRecommendShelf(Integer sizeType);
+
+    /**
+     * 更新货架占用量
+     * @param shelfId 货架ID
+     * @param delta 变化量
+     * @return 是否更新成功
+     */
+    boolean updateUsage(Long shelfId, int delta);
+
 }

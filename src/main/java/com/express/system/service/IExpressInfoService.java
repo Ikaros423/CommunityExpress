@@ -13,4 +13,18 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface IExpressInfoService extends IService<ExpressInfo> {
 
+    /**
+     * 快递入库
+     * @param expressInfo 快递信息
+     * @return 入库后的快递记录
+     */
+    ExpressInfo checkIn(ExpressInfo expressInfo);
+
+    /**
+     * 快递出库核销
+     * @param pickupCode 取件码
+     * @return 是否核销成功
+     */
+    boolean checkOut(String pickupCode);
+
 }

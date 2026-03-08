@@ -59,6 +59,10 @@ public class ExpressInfo implements Serializable {
     @TableField("shelf_location")
     private String shelfLocation;
 
+    @Schema(description = "货架ID")
+    @TableField("shelf_id")
+    private Long shelfId;
+
     @Schema(description = "状态: 0-待入库, 1-待取件, 2-已取件, 3-已退回")
     @TableField("status")
     private Byte status;
