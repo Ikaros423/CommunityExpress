@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -34,13 +33,120 @@ public class ExpressInfoController {
     }
 
     @PostMapping("/checkin")
-    public ApiResponse<ExpressInfo> checkIn(@RequestBody ExpressInfo expressInfo) {
+    public ApiResponse<ExpressInfo> checkIn(@RequestBody ExpressCheckinRequest expressInfo) {
         return ApiResponse.success("入库成功", expressInfoService.checkIn(expressInfo));
     }
 
     @PostMapping("/checkout")
-    public ApiResponse<Boolean> checkOut(@RequestParam("code") String pickupCode) {
-        expressInfoService.checkOut(pickupCode);
-        return ApiResponse.success("核销成功", true);
+    public ApiResponse<Boolean> checkOut(@RequestBody ExpressCheckoutRequest request) {
+        expressInfoService.checkOut(request.getTrackingNumber(), request.getPickupPhone());
+        return ApiResponse.success("取件成功", true);
+    }
+
+
+    public static class ExpressCheckinRequest {
+        private String trackingNumber;
+        private String logisticsCompany;
+        private Byte sizeType;
+        private String receiverName;
+        private String receiverPhone;
+        private Integer shelfCode;
+        private Integer shelfLayer;
+        private String remark;
+        private Boolean useRecommendShelf = true;
+
+        public String getTrackingNumber() {
+            return trackingNumber;
+        }
+
+        public void setTrackingNumber(String trackingNumber) {
+            this.trackingNumber = trackingNumber;
+        }
+
+        public String getLogisticsCompany() {
+            return logisticsCompany;
+        }
+
+        public void setLogisticsCompany(String logisticsCompany) {
+            this.logisticsCompany = logisticsCompany;
+        }
+
+        public Byte getSizeType() {
+            return sizeType;
+        }
+
+        public void setSizeType(Byte sizeType) {
+            this.sizeType = sizeType;
+        }
+
+        public String getReceiverName() {
+            return receiverName;
+        }
+
+        public void setReceiverName(String receiverName) {
+            this.receiverName = receiverName;
+        }
+
+        public String getReceiverPhone() {
+            return receiverPhone;
+        }
+
+        public void setReceiverPhone(String receiverPhone) {
+            this.receiverPhone = receiverPhone;
+        }
+
+        public Integer getShelfCode() {
+            return shelfCode;
+        }
+
+        public void setShelfCode(Integer shelfCode) {
+            this.shelfCode = shelfCode;
+        }
+
+        public Integer getShelfLayer() {
+            return shelfLayer;
+        }
+
+        public void setShelfLayer(Integer shelfLayer) {
+            this.shelfLayer = shelfLayer;
+        }
+
+        public String getRemark() {
+            return remark;
+        }
+
+        public void setRemark(String remark) {
+            this.remark = remark;
+        }
+
+        public Boolean getUseRecommendShelf() {
+            return useRecommendShelf;
+        }
+
+        public void setUseRecommendShelf(Boolean useRecommendShelf) {
+            this.useRecommendShelf = useRecommendShelf;
+        }
+    }
+
+
+    public static class ExpressCheckoutRequest {
+        private String trackingNumber;
+        private String pickupPhone;
+
+        public String getTrackingNumber() {
+            return trackingNumber;
+        }
+
+        public void setTrackingNumber(String trackingNumber) {
+            this.trackingNumber = trackingNumber;
+        }
+
+        public String getPickupPhone() {
+            return pickupPhone;
+        }
+
+        public void setPickupPhone(String pickupPhone) {
+            this.pickupPhone = pickupPhone;
+        }
     }
 }

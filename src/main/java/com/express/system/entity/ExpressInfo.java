@@ -51,17 +51,21 @@ public class ExpressInfo implements Serializable {
     @TableField("receiver_phone")
     private String receiverPhone;
 
-    @Schema(description = "取件码(6位数字或货架号组合)")
+    @Schema(description = "取件码(货架号-层-随机4位)")
     @TableField("pickup_code")
     private String pickupCode;
 
-    @Schema(description = "货架位置(如：1-A-05)")
-    @TableField("shelf_location")
-    private String shelfLocation;
+    @Schema(description = "货架code")
+    @TableField("shelf_code")
+    private Integer shelfCode;
 
-    @Schema(description = "货架ID")
-    @TableField("shelf_id")
-    private Long shelfId;
+    @Schema(description = "货架layer")
+    @TableField("shelf_layer")
+    private Integer shelfLayer;
+
+    @Schema(description = "实际取件人手机号")
+    @TableField("pickup_phone")
+    private String pickupPhone;
 
     @Schema(description = "状态: 0-待入库, 1-待取件, 2-已取件, 3-已退回")
     @TableField("status")

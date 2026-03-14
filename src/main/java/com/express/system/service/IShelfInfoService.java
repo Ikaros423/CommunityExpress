@@ -28,4 +28,12 @@ public interface IShelfInfoService extends IService<ShelfInfo> {
      */
     boolean updateUsage(Long shelfId, int delta);
 
+    /**
+     * 根据货架编码和层获取货架信息
+     * @param shelfCode 货架编码
+     * @param shelfLayer 货架层
+     * @return 货架信息
+     */
+    public ShelfInfo getByCodeAndLayer(Integer shelfCode, Integer shelfLayer);
+
 }

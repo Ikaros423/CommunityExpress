@@ -31,9 +31,13 @@ public class ShelfInfo implements Serializable {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @Schema(description = "货架编号(如: A-01, B-02)")
+    @Schema(description = "货架编号(如: 1, 2, 3)")
     @TableField("shelf_code")
-    private String shelfCode;
+    private Integer shelfCode;
+
+    @Schema(description = "货架层数(如: 1, 2, 3)")
+    @TableField("shelf_layer")
+    private Integer shelfLayer;
 
     @Schema(description = "货架名称/描述")
     @TableField("shelf_name")

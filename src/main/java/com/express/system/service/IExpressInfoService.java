@@ -2,6 +2,7 @@ package com.express.system.service;
 
 import com.express.system.entity.ExpressInfo;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.express.system.controller.ExpressInfoController.ExpressCheckinRequest;
 
 /**
  * <p>
@@ -18,13 +19,14 @@ public interface IExpressInfoService extends IService<ExpressInfo> {
      * @param expressInfo 快递信息
      * @return 入库后的快递记录
      */
-    ExpressInfo checkIn(ExpressInfo expressInfo);
+    ExpressInfo checkIn(ExpressCheckinRequest expressInfo);
 
     /**
-     * 快递出库核销
-     * @param pickupCode 取件码
+     * 快递出库核销（单号 + 手机号组合校验）
+     * @param trackingNumber 快递单号
+     * @param pickupPhone 实际取件人手机号
      * @return 是否核销成功
      */
-    boolean checkOut(String pickupCode);
+    boolean checkOut(String trackingNumber, String pickupPhone);
 
 }

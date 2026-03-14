@@ -51,7 +51,7 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
         // 2. 超过最大容量时，我们只在日志或业务层做记录，不抛异常
         if (newUsage > shelf.getTotalCapacity()) {
             // 这里可以记录一个警告日志，或者在前端返回一个“超额存储”的状态
-            System.out.println("警告：货架 " + shelf.getShelfCode() + " 已超负荷存储！");
+            System.out.println("警告：货架 " + shelf.getShelfCode() + shelf.getShelfLayer() + " 已超负荷存储！");
         }
 
         // 3. 执行更新
@@ -59,5 +59,15 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
                 .setSql("current_usage = CASE WHEN IFNULL(current_usage, 0) + " + delta + " < 0 THEN 0 ELSE IFNULL(current_usage, 0) + " + delta + " END")
                 .eq("id", shelfId)
                 .update();
+    }
+
+    public ShelfInfo getByCodeAndLayer(Integer shelfCode, Integer shelfLayer) {
+        if (shelfCode == null || shelfLayer == null) {
+            throw new IllegalArgumentException("shelfCode 和 shelfLayer 不能为空");
+        }
+        return this.lambdaQuery()
+                .eq(ShelfInfo::getShelfCode, shelfCode)
+                .eq(ShelfInfo::getShelfLayer, shelfLayer)
+                .one();
     }
 }
