@@ -30,6 +30,7 @@ Quick reference for project structure, API conventions, database schema, and ope
 ## Implemented APIs
 ### ExpressInfoController (`/system/expressInfo`)
 - `GET /list`
+  - Query params: `trackingNumber`, `receiverPhone`, `status`, `shelfCode`, `shelfLayer`, `sizeType` (all optional).
   - Returns `ApiResponse<List<ExpressInfo>>`.
 - `POST /checkin`
   - Body: `ExpressCheckinRequest` (trackingNumber, logisticsCompany, sizeType, receiverName, receiverPhone, shelfCode, shelfLayer, remark, useRecommendShelf).
@@ -37,6 +38,15 @@ Quick reference for project structure, API conventions, database schema, and ope
 - `POST /checkout`
   - Body: `ExpressCheckoutRequest` with fields `trackingNumber`, `pickupPhone`.
   - Uses service `checkOut(trackingNumber, pickupPhone)`.
+- `POST /update`
+  - Body: `ExpressInfo` (requires `id`).
+  - Updates non-shelf fields; `sizeType` must be changed via `relocate`.
+- `POST /delete`
+  - Query param: `id`.
+  - Deletes express; if status=1, releases shelf usage.
+- `POST /relocate`
+  - Body: `ExpressRelocateRequest` (id, shelfCode, shelfLayer, sizeType).
+  - If `shelfCode` or `shelfLayer` is missing, auto-assigns via recommend shelf.
 
 ### ShelfInfoController (`/system/shelfInfo`)
 - `GET /list`
@@ -80,6 +90,12 @@ Quick reference for project structure, API conventions, database schema, and ope
 - Validates status `==1` (awaiting pickup) and has `shelfCode` + `shelfLayer`.
 - Loads shelf by code+layer and decrements shelf usage by `-1`.
 - Updates `status=2`, `pickupPhone`, `updateTime`.
+
+### Express update / relocate / delete
+- `update` allows editing common fields (receiver/logistics/remark/phones) and `trackingNumber`/`status`.
+- `update` does not change shelf fields or `sizeType`.
+- `relocate` handles shelf movement and `sizeType` changes, and regenerates `pickupCode`.
+- `delete` releases shelf usage if the express is still in status `1`.
 
 ### Shelf recommendation
 - `IShelfInfoService.getRecommendShelf(sizeType)`:

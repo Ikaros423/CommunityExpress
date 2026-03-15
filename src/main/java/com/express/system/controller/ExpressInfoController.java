@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -28,8 +29,15 @@ public class ExpressInfoController {
     private IExpressInfoService expressInfoService;
 
     @GetMapping("/list")
-    public ApiResponse<List<ExpressInfo>> list() {
-        return ApiResponse.success(expressInfoService.list());
+    public ApiResponse<List<ExpressInfo>> list(
+            @RequestParam(value = "trackingNumber", required = false) String trackingNumber,
+            @RequestParam(value = "receiverPhone", required = false) String receiverPhone,
+            @RequestParam(value = "status", required = false) Integer status,
+            @RequestParam(value = "shelfCode", required = false) Integer shelfCode,
+            @RequestParam(value = "shelfLayer", required = false) Integer shelfLayer,
+            @RequestParam(value = "sizeType", required = false) Integer sizeType) {
+        return ApiResponse.success(expressInfoService.listByFilter(
+                trackingNumber, receiverPhone, status, shelfCode, shelfLayer, sizeType));
     }
 
     @PostMapping("/checkin")
@@ -41,6 +49,23 @@ public class ExpressInfoController {
     public ApiResponse<Boolean> checkOut(@RequestBody ExpressCheckoutRequest request) {
         expressInfoService.checkOut(request.getTrackingNumber(), request.getPickupPhone());
         return ApiResponse.success("取件成功", true);
+    }
+
+    @PostMapping("/update")
+    public ApiResponse<ExpressInfo> update(@RequestBody ExpressInfo expressInfo) {
+        return ApiResponse.success("更新成功", expressInfoService.updateExpress(expressInfo));
+    }
+
+    @PostMapping("/delete")
+    public ApiResponse<Boolean> delete(@RequestParam("id") Long id) {
+        return ApiResponse.success("删除成功", expressInfoService.deleteExpress(id));
+    }
+
+    @PostMapping("/relocate")
+    public ApiResponse<ExpressInfo> relocate(@RequestBody ExpressRelocateRequest request) {
+        ExpressInfo updated = expressInfoService.relocateShelf(
+                request.getId(), request.getShelfCode(), request.getShelfLayer(), request.getSizeType());
+        return ApiResponse.success("换柜成功", updated);
     }
 
 
@@ -147,6 +172,45 @@ public class ExpressInfoController {
 
         public void setPickupPhone(String pickupPhone) {
             this.pickupPhone = pickupPhone;
+        }
+    }
+
+    public static class ExpressRelocateRequest {
+        private Long id;
+        private Integer shelfCode;
+        private Integer shelfLayer;
+        private Integer sizeType;
+
+        public Long getId() {
+            return id;
+        }
+
+        public void setId(Long id) {
+            this.id = id;
+        }
+
+        public Integer getShelfCode() {
+            return shelfCode;
+        }
+
+        public void setShelfCode(Integer shelfCode) {
+            this.shelfCode = shelfCode;
+        }
+
+        public Integer getShelfLayer() {
+            return shelfLayer;
+        }
+
+        public void setShelfLayer(Integer shelfLayer) {
+            this.shelfLayer = shelfLayer;
+        }
+
+        public Integer getSizeType() {
+            return sizeType;
+        }
+
+        public void setSizeType(Integer sizeType) {
+            this.sizeType = sizeType;
         }
     }
 }
