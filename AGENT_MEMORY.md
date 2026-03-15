@@ -39,7 +39,27 @@ Quick reference for project structure, API conventions, database schema, and ope
   - Uses service `checkOut(trackingNumber, pickupPhone)`.
 
 ### ShelfInfoController (`/system/shelfInfo`)
-- Currently empty.
+- `GET /list`
+  - Query params: `shelfType`, `status`, `shelfCode`, `shelfLayer`, `locationArea` (all optional).
+  - Returns `ApiResponse<List<ShelfInfo>>`.
+- `GET /detail`
+  - Query param: `id`.
+  - Returns `ApiResponse<ShelfInfo>`.
+- `GET /byCodeLayer`
+  - Query params: `shelfCode`, `shelfLayer`.
+  - Returns `ApiResponse<ShelfInfo>`.
+- `GET /recommend`
+  - Query param: `sizeType`.
+  - Returns `ApiResponse<ShelfInfo>`.
+- `POST /create`
+  - Body: `ShelfInfo`.
+  - Returns `ApiResponse<ShelfInfo>`.
+- `POST /update`
+  - Body: `ShelfInfo` (requires `id`).
+  - Returns `ApiResponse<ShelfInfo>`.
+- `POST /delete`
+  - Query param: `id`.
+  - Returns `ApiResponse<Boolean>`.
 
 ### SysUserController (`/system/sysUser`)
 - Currently empty.
@@ -67,6 +87,12 @@ Quick reference for project structure, API conventions, database schema, and ope
   - Orders by:
     - Not full first: `current_usage < total_capacity`.
     - Then lowest usage ratio.
+
+### Shelf management
+- `IShelfInfoService.listByFilter(...)` supports multi-field filtering and orders by `shelf_code`, `shelf_layer`.
+- `createShelf` validates required fields and enforces unique `(shelf_code, shelf_layer)`.
+- `updateShelf` checks existence and duplicate `(shelf_code, shelf_layer)` conflicts.
+- `deleteShelf` uses logical deletion via MyBatis-Plus (`@TableLogic` on `is_deleted`).
 
 ### Shelf usage update
 - `updateUsage(shelfId, delta)` clamps `current_usage` to minimum `0`.

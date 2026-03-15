@@ -7,6 +7,9 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 import static java.lang.Integer.max;
 
 /**
@@ -31,6 +34,20 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
                 .last("ORDER BY CASE WHEN current_usage < total_capacity THEN 0 ELSE 1 END, " +
                         "(current_usage * 1.0 / total_capacity) ASC LIMIT 1")
                 .one();
+    }
+
+    @Override
+    public List<ShelfInfo> listByFilter(Integer shelfType,
+                                        Integer status,
+                                        Integer shelfCode,
+                                        Integer shelfLayer) {
+        return this.lambdaQuery()
+                .eq(shelfType != null, ShelfInfo::getShelfType, shelfType)
+                .eq(status != null, ShelfInfo::getStatus, status)
+                .eq(shelfCode != null, ShelfInfo::getShelfCode, shelfCode)
+                .eq(shelfLayer != null, ShelfInfo::getShelfLayer, shelfLayer)
+                .orderByAsc(ShelfInfo::getShelfCode, ShelfInfo::getShelfLayer)
+                .list();
     }
 
     /**
@@ -61,6 +78,7 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
                 .update();
     }
 
+    @Override
     public ShelfInfo getByCodeAndLayer(Integer shelfCode, Integer shelfLayer) {
         if (shelfCode == null || shelfLayer == null) {
             throw new IllegalArgumentException("shelfCode 和 shelfLayer 不能为空");
@@ -69,5 +87,100 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
                 .eq(ShelfInfo::getShelfCode, shelfCode)
                 .eq(ShelfInfo::getShelfLayer, shelfLayer)
                 .one();
+    }
+
+    @Override
+    public ShelfInfo getDetail(Long id) {
+        if (id == null) {
+            throw new RuntimeException("货架ID不能为空");
+        }
+        ShelfInfo shelf = this.getById(id);
+        if (shelf == null) {
+            throw new RuntimeException("货架不存在");
+        }
+        return shelf;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ShelfInfo createShelf(ShelfInfo shelfInfo) {
+        if (shelfInfo == null) {
+            throw new RuntimeException("货架信息不能为空");
+        }
+        if (shelfInfo.getShelfCode() == null || shelfInfo.getShelfLayer() == null) {
+            throw new RuntimeException("货架编号和层数不能为空");
+        }
+        if (shelfInfo.getShelfType() == null) {
+            throw new RuntimeException("货架类型不能为空");
+        }
+        if (shelfInfo.getTotalCapacity() == null) {
+            throw new RuntimeException("货架容量不能为空");
+        }
+        ShelfInfo existing = getByCodeAndLayer(shelfInfo.getShelfCode(), shelfInfo.getShelfLayer());
+        if (existing != null) {
+            throw new RuntimeException("该货架编号和层已存在");
+        }
+
+        if (shelfInfo.getCurrentUsage() == null) {
+            shelfInfo.setCurrentUsage(0);
+        }
+        if (shelfInfo.getStatus() == null) {
+            shelfInfo.setStatus((byte) 1);
+        }
+        if (shelfInfo.getPriority() == null) {
+            shelfInfo.setPriority(0);
+        }
+        LocalDateTime now = LocalDateTime.now();
+        shelfInfo.setCreateTime(now);
+        shelfInfo.setUpdateTime(now);
+
+        boolean saved = this.save(shelfInfo);
+        if (!saved) {
+            throw new RuntimeException("新增货架失败");
+        }
+        return shelfInfo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ShelfInfo updateShelf(ShelfInfo shelfInfo) {
+        if (shelfInfo == null || shelfInfo.getId() == null) {
+            throw new RuntimeException("货架ID不能为空");
+        }
+        ShelfInfo existing = this.getById(shelfInfo.getId());
+        if (existing == null) {
+            throw new RuntimeException("货架不存在");
+        }
+
+        if (shelfInfo.getShelfCode() != null && shelfInfo.getShelfLayer() != null) {
+            ShelfInfo dup = getByCodeAndLayer(shelfInfo.getShelfCode(), shelfInfo.getShelfLayer());
+            if (dup != null && !dup.getId().equals(shelfInfo.getId())) {
+                throw new RuntimeException("该货架编号和层已存在");
+            }
+        }
+
+        shelfInfo.setUpdateTime(LocalDateTime.now());
+        boolean updated = this.updateById(shelfInfo);
+        if (!updated) {
+            throw new RuntimeException("更新货架失败");
+        }
+        return this.getById(shelfInfo.getId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean deleteShelf(Long id) {
+        if (id == null) {
+            throw new RuntimeException("货架ID不能为空");
+        }
+        ShelfInfo shelf = this.getById(id);
+        if (shelf == null) {
+            throw new RuntimeException("货架不存在");
+        }
+        boolean removed = this.removeById(id);
+        if (!removed) {
+            throw new RuntimeException("删除货架失败");
+        }
+        return true;
     }
 }

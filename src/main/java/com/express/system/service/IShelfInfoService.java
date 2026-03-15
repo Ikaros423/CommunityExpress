@@ -34,6 +34,48 @@ public interface IShelfInfoService extends IService<ShelfInfo> {
      * @param shelfLayer 货架层
      * @return 货架信息
      */
-    public ShelfInfo getByCodeAndLayer(Integer shelfCode, Integer shelfLayer);
+    ShelfInfo getByCodeAndLayer(Integer shelfCode, Integer shelfLayer);
+
+    /**
+     * 条件查询货架列表
+     * @param shelfType 货架类型
+     * @param status 货架状态
+     * @param shelfCode 货架编号
+     * @param shelfLayer 货架层
+     * @param locationArea 所属区域
+     * @return 货架列表
+     */
+    java.util.List<ShelfInfo> listByFilter(Integer shelfType,
+                                           Integer status,
+                                           Integer shelfCode,
+                                           Integer shelfLayer);
+
+    /**
+     * 获取货架详情
+     * @param id 货架ID
+     * @return 货架信息
+     */
+    ShelfInfo getDetail(Long id);
+
+    /**
+     * 新增货架
+     * @param shelfInfo 货架信息
+     * @return 新增后的货架
+     */
+    ShelfInfo createShelf(ShelfInfo shelfInfo);
+
+    /**
+     * 更新货架
+     * @param shelfInfo 货架信息
+     * @return 更新后的货架
+     */
+    ShelfInfo updateShelf(ShelfInfo shelfInfo);
+
+    /**
+     * 删除货架
+     * @param id 货架ID
+     * @return 是否删除成功
+     */
+    boolean deleteShelf(Long id);
 
 }
