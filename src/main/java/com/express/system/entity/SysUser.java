@@ -11,6 +11,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 
+import com.express.system.entity.enums.UserRole;
+
 /**
  * <p>
  * 用户信息表
@@ -51,13 +53,9 @@ public class SysUser implements Serializable {
     @TableField("email")
     private String email;
 
-    @Schema(description = "头像地址")
-    @TableField("avatar")
-    private String avatar;
-
     @Schema(description = "角色: ADMIN-管理员, STAFF-工作人员, USER-普通用户")
     @TableField("role")
-    private String role;
+    private UserRole role;
 
     @Schema(description = "账号状态: 0-禁用, 1-正常")
     @TableField("status")
