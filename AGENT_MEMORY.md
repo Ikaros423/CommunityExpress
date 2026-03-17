@@ -72,7 +72,27 @@ Quick reference for project structure, API conventions, database schema, and ope
   - Returns `ApiResponse<Boolean>`.
 
 ### SysUserController (`/system/sysUser`)
-- Currently empty.
+- `GET /list`
+  - Query params: `username`, `phone`, `role`, `status` (optional).
+  - Returns `ApiResponse<List<SysUser>>` (password masked).
+- `GET /detail`
+  - Query param: `id`.
+  - Returns `ApiResponse<SysUser>` (password masked).
+- `POST /create`
+  - Body: `SysUserCreateRequest` (username, password, role required).
+  - Returns `ApiResponse<SysUser>`.
+- `POST /update`
+  - Body: `SysUserUpdateRequest` (id required).
+  - Returns `ApiResponse<SysUser>`.
+- `POST /delete`
+  - Query param: `id`.
+  - Returns `ApiResponse<Boolean>`.
+- `POST /register`
+  - Body: `SysUserRegisterRequest` (username, password required).
+  - Returns `ApiResponse<SysUser>`.
+- `POST /login`
+  - Body: `SysUserLoginRequest` (account, password).
+  - Returns `ApiResponse<SysUser>`.
 
 ## Business Logic Notes
 ### Express check-in
@@ -114,6 +134,12 @@ Quick reference for project structure, API conventions, database schema, and ope
 - `updateUsage(shelfId, delta)` clamps `current_usage` to minimum `0`.
 - Over-capacity allowed but logs a warning.
 
+### SysUser module
+- Role type uses enum `UserRole` (ADMIN/STAFF/USER), stored as string.
+- Passwords are BCrypt-hashed; login supports username or phone.
+- `SysUserInitializer` auto-creates default admin (`admin`/`123456`) if no admin exists.
+- Controller requests use validation annotations; validation errors return 400 with message.
+
 ## Database Schema (from entities)
 ### `express_info`
 - `id` (PK, auto)
@@ -146,7 +172,7 @@ Quick reference for project structure, API conventions, database schema, and ope
 - `id` (PK, auto)
 - `username`, `password`, `nickname`
 - `phone`, `email`, `avatar`
-- `role` (ADMIN/STAFF/USER)
+- `role` (enum: ADMIN/STAFF/USER)
 - `status` (0 disabled, 1 active)
 - `create_time`, `update_time`
 - `is_deleted` (logical delete)
