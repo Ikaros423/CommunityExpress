@@ -15,6 +15,9 @@ WHERE tracking_number IN
 DELETE FROM shelf_info
 WHERE shelf_code IN (101, 201, 301);
 
+DELETE FROM sys_user
+WHERE username IN ('admin', 'staff01', 'user01');
+
 -- ========= 货架测试数据 =========
 -- shelf_type: 0-标准小件, 1-大件, 2-冷链, 3-易碎
 -- status: 0-维修中, 1-可用
@@ -37,3 +40,12 @@ VALUES
 ('YT100000003', '圆通', 0, '王五', '13800000003', '13900000003', '101-2-3344', 101, 2, 2, 0, NOW(), NOW(), '已取件状态测试单'),
 ('JD100000004', '京东', 2, '赵六', '13800000004', NULL, '301-1-4455', 301, 1, 1, 0, NOW(), NOW(), '冷链待取件测试单'),
 ('YD100000005', '韵达', 3, '周七', '13800000005', NULL, '101-1-5566', 101, 1, 3, 0, NOW(), NOW(), '已退回状态测试单');
+
+-- ========= 用户测试数据 =========
+-- 密码默认：123456（BCrypt）
+INSERT INTO sys_user
+(username, password, nickname, phone, email, avatar, role, status, create_time, update_time, is_deleted)
+VALUES
+('admin',   '$2a$10$7EqJtq98hPqEX7fNZaFWoOHiJj7T8e1koXSPo6e7i0rGUNShUMp1K', '系统管理员', '13900000001', 'admin@example.com', NULL, 'ADMIN', 1, NOW(), NOW(), 0),
+('staff01', '$2a$10$7EqJtq98hPqEX7fNZaFWoOHiJj7T8e1koXSPo6e7i0rGUNShUMp1K', '驿站员工',   '13900000002', 'staff@example.com', NULL, 'STAFF', 1, NOW(), NOW(), 0),
+('user01',  '$2a$10$7EqJtq98hPqEX7fNZaFWoOHiJj7T8e1koXSPo6e7i0rGUNShUMp1K', '普通用户',   '13900000003', 'user@example.com',  NULL, 'USER',  1, NOW(), NOW(), 0);
