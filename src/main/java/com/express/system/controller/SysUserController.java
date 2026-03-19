@@ -3,6 +3,7 @@ package com.express.system.controller;
 import com.express.system.common.ApiResponse;
 import com.express.system.entity.SysUser;
 import com.express.system.entity.enums.UserRole;
+import com.express.system.security.JwtUtil;
 import com.express.system.service.ISysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 
@@ -35,13 +37,15 @@ public class SysUserController {
     @Autowired
     private ISysUserService sysUserService;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     @GetMapping("/list")
     public ApiResponse<List<SysUser>> list(
             @RequestParam(value = "username", required = false) String username,
-            @RequestParam(value = "phone", required = false) String phone,
             @RequestParam(value = "role", required = false) UserRole role,
             @RequestParam(value = "status", required = false) Integer status) {
-        return ApiResponse.success(sysUserService.listByFilter(username, phone, role, status));
+        return ApiResponse.success(sysUserService.listByFilter(username, role, status));
     }
 
     @GetMapping("/detail")
@@ -55,7 +59,6 @@ public class SysUserController {
         user.setUsername(request.getUsername());
         user.setPassword(request.getPassword());
         user.setNickname(request.getNickname());
-        user.setPhone(request.getPhone());
         user.setEmail(request.getEmail());
         user.setRole(request.getRole());
         user.setStatus(request.getStatus());
@@ -69,7 +72,6 @@ public class SysUserController {
         user.setUsername(request.getUsername());
         user.setPassword(request.getPassword());
         user.setNickname(request.getNickname());
-        user.setPhone(request.getPhone());
         user.setEmail(request.getEmail());
         user.setRole(request.getRole());
         user.setStatus(request.getStatus());
@@ -84,17 +86,19 @@ public class SysUserController {
     @PostMapping("/register")
     public ApiResponse<SysUser> register(@Valid @RequestBody SysUserRegisterRequest request) {
         return ApiResponse.success("注册成功", sysUserService.registerUser(
-                request.getUsername(), request.getPassword(), request.getPhone(), request.getNickname()));
+                request.getUsername(), request.getPassword(), request.getNickname()));
     }
 
     @PostMapping("/login")
-    public ApiResponse<SysUser> login(@Valid @RequestBody SysUserLoginRequest request) {
-        return ApiResponse.success("登录成功", sysUserService.login(request.getAccount(), request.getPassword()));
+    public ApiResponse<SysUserLoginResponse> login(@Valid @RequestBody SysUserLoginRequest request) {
+        SysUser user = sysUserService.login(request.getAccount(), request.getPassword());
+        String token = jwtUtil.generateToken(user);
+        return ApiResponse.success("登录成功", new SysUserLoginResponse(token, user));
     }
 
     public static class SysUserCreateRequest {
         @NotBlank(message = "用户名不能为空")
-        @Size(min = 2, max = 15, message = "用户名长度需在2-15之间")
+        @Pattern(regexp = "^1\\d{10}$", message = "用户名需为手机号")
         private String username;
         @NotBlank(message = "密码不能为空")
         @Size(min = 6, max = 20, message = "密码长度需在6-20之间")
@@ -102,7 +106,6 @@ public class SysUserController {
         @NotNull(message = "角色不能为空")
         private UserRole role;
         private String nickname;
-        private String phone;
         private String email;
         private Byte status;
 
@@ -138,14 +141,6 @@ public class SysUserController {
             this.nickname = nickname;
         }
 
-        public String getPhone() {
-            return phone;
-        }
-
-        public void setPhone(String phone) {
-            this.phone = phone;
-        }
-
         public String getEmail() {
             return email;
         }
@@ -166,10 +161,10 @@ public class SysUserController {
     public static class SysUserUpdateRequest {
         @NotNull(message = "用户ID不能为空")
         private Long id;
+        @Pattern(regexp = "^1\\d{10}$", message = "用户名需为手机号")
         private String username;
         private String password;
         private String nickname;
-        private String phone;
         private String email;
         private UserRole role;
         private Byte status;
@@ -206,14 +201,6 @@ public class SysUserController {
             this.nickname = nickname;
         }
 
-        public String getPhone() {
-            return phone;
-        }
-
-        public void setPhone(String phone) {
-            this.phone = phone;
-        }
-
         public String getEmail() {
             return email;
         }
@@ -241,12 +228,11 @@ public class SysUserController {
 
     public static class SysUserRegisterRequest {
         @NotBlank(message = "用户名不能为空")
-        @Size(min = 2, max = 32, message = "用户名长度需在2-32之间")
+        @Pattern(regexp = "^1\\d{10}$", message = "用户名需为手机号")
         private String username;
         @NotBlank(message = "密码不能为空")
         @Size(min = 6, max = 64, message = "密码长度需在6-64之间")
         private String password;
-        private String phone;
         private String nickname;
 
         public String getUsername() {
@@ -263,14 +249,6 @@ public class SysUserController {
 
         public void setPassword(String password) {
             this.password = password;
-        }
-
-        public String getPhone() {
-            return phone;
-        }
-
-        public void setPhone(String phone) {
-            this.phone = phone;
         }
 
         public String getNickname() {
@@ -302,6 +280,32 @@ public class SysUserController {
 
         public void setPassword(String password) {
             this.password = password;
+        }
+    }
+
+    public static class SysUserLoginResponse {
+        private String token;
+        private SysUser user;
+
+        public SysUserLoginResponse(String token, SysUser user) {
+            this.token = token;
+            this.user = user;
+        }
+
+        public String getToken() {
+            return token;
+        }
+
+        public void setToken(String token) {
+            this.token = token;
+        }
+
+        public SysUser getUser() {
+            return user;
+        }
+
+        public void setUser(SysUser user) {
+            this.user = user;
         }
     }
 }

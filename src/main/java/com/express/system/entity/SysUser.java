@@ -45,10 +45,6 @@ public class SysUser implements Serializable {
     @TableField("nickname")
     private String nickname;
 
-    @Schema(description = "联系电话")
-    @TableField("phone")
-    private String phone;
-
     @Schema(description = "邮箱")
     @TableField("email")
     private String email;

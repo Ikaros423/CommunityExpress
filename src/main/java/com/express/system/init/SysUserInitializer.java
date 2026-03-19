@@ -21,15 +21,16 @@ public class SysUserInitializer implements CommandLineRunner {
         if (adminCount > 0) {
             return;
         }
+        String adminUsername = "13900000001";
         long usernameCount = sysUserService.lambdaQuery()
-                .eq(SysUser::getUsername, "admin")
+                .eq(SysUser::getUsername, adminUsername)
                 .count();
         if (usernameCount > 0) {
             return;
         }
 
         SysUser admin = new SysUser();
-        admin.setUsername("admin");
+        admin.setUsername(adminUsername);
         admin.setPassword("123456");
         admin.setNickname("系统管理员");
         admin.setRole(UserRole.ADMIN);

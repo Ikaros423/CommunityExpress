@@ -6,7 +6,6 @@ import com.express.system.mapper.SysUserMapper;
 import com.express.system.service.ISysUserService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
@@ -23,15 +22,17 @@ import java.util.List;
 @Service
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements ISysUserService {
 
-    private static final PasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
+
+    public SysUserServiceImpl(PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
+    }
 
     @Override
-    public List<SysUser> listByFilter(String username, String phone, UserRole role, Integer status) {
+    public List<SysUser> listByFilter(String username, UserRole role, Integer status) {
         String normalizedUsername = safeTrim(username);
-        String normalizedPhone = safeTrim(phone);
         List<SysUser> list = this.lambdaQuery()
                 .like(normalizedUsername != null && !normalizedUsername.isBlank(), SysUser::getUsername, normalizedUsername)
-                .like(normalizedPhone != null && !normalizedPhone.isBlank(), SysUser::getPhone, normalizedPhone)
                 .eq(role != null, SysUser::getRole, role)
                 .eq(status != null, SysUser::getStatus, status)
                 .orderByDesc(SysUser::getUpdateTime)
@@ -74,14 +75,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
 
         checkUsernameUnique(username, null);
-        String phone = safeTrim(user.getPhone());
-        if (phone != null && !phone.isBlank()) {
-            checkPhoneUnique(phone, null);
-            user.setPhone(phone);
-        }
-
         user.setUsername(username);
-        user.setPassword(PASSWORD_ENCODER.encode(password));
+        user.setPassword(passwordEncoder.encode(password));
         user.setNickname(safeTrim(user.getNickname()));
         user.setEmail(safeTrim(user.getEmail()));
 
@@ -119,18 +114,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             updateEntity.setUsername(username);
         }
 
-        String phone = safeTrim(user.getPhone());
-        if (phone != null && !phone.isBlank() && !phone.equals(existing.getPhone())) {
-            checkPhoneUnique(phone, user.getId());
-            updateEntity.setPhone(phone);
-        }
-
         String password = safeTrim(user.getPassword());
         if (password != null && password.isBlank()) {
             throw new RuntimeException("密码不能为空");
         }
         if (password != null && !password.isBlank()) {
-            updateEntity.setPassword(PASSWORD_ENCODER.encode(password));
+            updateEntity.setPassword(passwordEncoder.encode(password));
         }
 
         String nickname = safeTrim(user.getNickname());
@@ -177,7 +166,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
-    public SysUser registerUser(String username, String password, String phone, String nickname) {
+    public SysUser registerUser(String username, String password, String nickname) {
         String normalizedUsername = safeTrim(username);
         String normalizedPassword = safeTrim(password);
         if (normalizedUsername == null || normalizedUsername.isBlank()) {
@@ -188,15 +177,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         checkUsernameUnique(normalizedUsername, null);
 
-        String normalizedPhone = safeTrim(phone);
-        if (normalizedPhone != null && !normalizedPhone.isBlank()) {
-            checkPhoneUnique(normalizedPhone, null);
-        }
-
         SysUser user = new SysUser();
         user.setUsername(normalizedUsername);
-        user.setPassword(PASSWORD_ENCODER.encode(normalizedPassword));
-        user.setPhone(normalizedPhone);
+        user.setPassword(passwordEncoder.encode(normalizedPassword));
         user.setNickname(safeTrim(nickname));
         user.setRole(UserRole.USER);
         user.setStatus((byte) 1);
@@ -225,8 +208,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         SysUser user = this.lambdaQuery()
                 .eq(SysUser::getUsername, normalizedAccount)
-                .or()
-                .eq(SysUser::getPhone, normalizedAccount)
                 .one();
         if (user == null) {
             throw new RuntimeException("账号或密码错误");
@@ -234,7 +215,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (user.getStatus() != null && user.getStatus() == 0) {
             throw new RuntimeException("账号已被禁用");
         }
-        if (!PASSWORD_ENCODER.matches(normalizedPassword, user.getPassword())) {
+        if (!passwordEncoder.matches(normalizedPassword, user.getPassword())) {
             throw new RuntimeException("账号或密码错误");
         }
 
@@ -249,16 +230,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 .count();
         if (count > 0) {
             throw new RuntimeException("用户名已存在");
-        }
-    }
-
-    private void checkPhoneUnique(String phone, Long excludeId) {
-        long count = this.lambdaQuery()
-                .eq(SysUser::getPhone, phone)
-                .ne(excludeId != null, SysUser::getId, excludeId)
-                .count();
-        if (count > 0) {
-            throw new RuntimeException("手机号已存在");
         }
     }
 

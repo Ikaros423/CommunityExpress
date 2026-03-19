@@ -14,7 +14,6 @@ import com.baomidou.mybatisplus.extension.service.IService;
 public interface ISysUserService extends IService<SysUser> {
 
     java.util.List<SysUser> listByFilter(String username,
-                                         String phone,
                                          com.express.system.entity.enums.UserRole role,
                                          Integer status);
 
@@ -26,7 +25,7 @@ public interface ISysUserService extends IService<SysUser> {
 
     boolean deleteUser(Long id);
 
-    SysUser registerUser(String username, String password, String phone, String nickname);
+    SysUser registerUser(String username, String password, String nickname);
 
     SysUser login(String account, String password);
 
