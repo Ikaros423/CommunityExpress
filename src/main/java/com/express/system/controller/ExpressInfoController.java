@@ -2,8 +2,12 @@ package com.express.system.controller;
 
 import com.express.system.common.ApiResponse;
 import com.express.system.entity.ExpressInfo;
+import com.express.system.entity.enums.UserRole;
+import com.express.system.security.JwtUser;
 import com.express.system.service.IExpressInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,6 +40,15 @@ public class ExpressInfoController {
             @RequestParam(value = "shelfCode", required = false) Integer shelfCode,
             @RequestParam(value = "shelfLayer", required = false) Integer shelfLayer,
             @RequestParam(value = "sizeType", required = false) Integer sizeType) {
+        JwtUser currentUser = getCurrentUser();
+        if (currentUser != null && currentUser.getRole() == UserRole.USER) {
+            String phone = currentUser.getUsername();
+            if (phone == null || phone.isBlank()) {
+                throw new RuntimeException("当前用户未绑定手机号");
+            }
+            return ApiResponse.success(expressInfoService.listByFilter(
+                    trackingNumber, phone, null, null, null, null));
+        }
         return ApiResponse.success(expressInfoService.listByFilter(
                 trackingNumber, receiverPhone, status, shelfCode, shelfLayer, sizeType));
     }
@@ -47,7 +60,12 @@ public class ExpressInfoController {
 
     @PostMapping("/checkout")
     public ApiResponse<Boolean> checkOut(@RequestBody ExpressCheckoutRequest request) {
-        expressInfoService.checkOut(request.getTrackingNumber(), request.getPickupPhone());
+        JwtUser currentUser = getCurrentUser();
+        String operatorPhone = currentUser == null ? null : currentUser.getUsername();
+        if (operatorPhone == null || operatorPhone.isBlank()) {
+            throw new RuntimeException("当前用户未绑定手机号");
+        }
+        expressInfoService.checkOut(request.getTrackingNumber(), operatorPhone);
         return ApiResponse.success("取件成功", true);
     }
 
@@ -156,7 +174,6 @@ public class ExpressInfoController {
 
     public static class ExpressCheckoutRequest {
         private String trackingNumber;
-        private String pickupPhone;
 
         public String getTrackingNumber() {
             return trackingNumber;
@@ -164,14 +181,6 @@ public class ExpressInfoController {
 
         public void setTrackingNumber(String trackingNumber) {
             this.trackingNumber = trackingNumber;
-        }
-
-        public String getPickupPhone() {
-            return pickupPhone;
-        }
-
-        public void setPickupPhone(String pickupPhone) {
-            this.pickupPhone = pickupPhone;
         }
     }
 
@@ -212,5 +221,13 @@ public class ExpressInfoController {
         public void setSizeType(Integer sizeType) {
             this.sizeType = sizeType;
         }
+    }
+
+    private JwtUser getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof JwtUser)) {
+            return null;
+        }
+        return (JwtUser) authentication.getPrincipal();
     }
 }
