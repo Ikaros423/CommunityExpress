@@ -187,3 +187,8 @@ Quick reference for project structure, API conventions, database schema, and ope
 
 ## Test Data
 - `src/main/resources/sql/test_data_mysql8.sql` seeds sample shelves and expresses.
+
+## Tests
+- Controller 单元测试使用 MockMvc + Mock Service，不依赖数据库。
+- 覆盖：`SysUserControllerTest`, `ExpressInfoControllerTest`, `ShelfInfoControllerTest`。
+- `CommunityExpressApplicationTests` 为 contextLoads，标记为跳过（避免数据库依赖）。

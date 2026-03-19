@@ -56,6 +56,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
             throw new RuntimeException("该快递单号已存在，请勿重复入库");
         }
 
+        // 选择目标货架：推荐或指定的货架编号+层。
         ShelfInfo shelf;
         if (expressInfo.getUseRecommendShelf()) {
             shelf = shelfInfoService.getRecommendShelf((int) expressInfo.getSizeType());
@@ -72,6 +73,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
             }
         }
 
+        // 构建入库记录（避免直接修改请求对象）。
         ExpressInfo storeExpressInfo = new ExpressInfo();
         storeExpressInfo.setTrackingNumber(trackingNumber);
         storeExpressInfo.setLogisticsCompany(safeTrim(expressInfo.getLogisticsCompany()));
@@ -92,6 +94,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
             throw new RuntimeException("快递入库失败");
         }
 
+        // 保存成功后占用货架容量。
         boolean shelfUpdated = shelfInfoService.updateUsage(shelf.getId(), 1);
         if (!shelfUpdated) {
             throw new RuntimeException("更新货架占用失败");
@@ -139,6 +142,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
             throw new RuntimeException("更新快递状态失败");
         }
 
+        // 出库成功后释放货架容量。
         boolean shelfUpdated = shelfInfoService.updateUsage(shelf.getId(), -1);
         if (!shelfUpdated) {
             throw new RuntimeException("释放货架空间失败");
@@ -196,7 +200,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
             expressInfo.setRemark(normalizedRemark);
         }
 
-        // 禁止在 update 接口修改与货架相关的字段
+        // update 接口禁止修改货架相关字段，换柜走 relocate。
         expressInfo.setPickupCode(null);
         expressInfo.setShelfCode(null);
         expressInfo.setShelfLayer(null);
@@ -221,6 +225,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
             throw new RuntimeException("快递不存在");
         }
 
+        // 待取件状态删除时先释放货架容量。
         if (existing.getStatus() != null && existing.getStatus() == 1
                 && existing.getShelfCode() != null && existing.getShelfLayer() != null) {
             ShelfInfo shelf = shelfInfoService.getByCodeAndLayer(existing.getShelfCode(), existing.getShelfLayer());
@@ -254,11 +259,13 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
         if (expressInfo == null) {
             throw new RuntimeException("快递不存在");
         }
+        // 仅允许待取件状态换柜。
         if (expressInfo.getStatus() == null || expressInfo.getStatus() != 1) {
             throw new RuntimeException("当前快递状态不允许换柜");
         }
 
         ShelfInfo targetShelf;
+        // 未提供货架位置时自动推荐。
         if (shelfCode == null || shelfLayer == null) {
             targetShelf = shelfInfoService.getRecommendShelf(sizeType);
             if (targetShelf == null) {
@@ -274,6 +281,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
             throw new RuntimeException("目标货架不可用");
         }
 
+        // 释放原货架占用（如果存在）。
         if (expressInfo.getShelfCode() != null && expressInfo.getShelfLayer() != null) {
             ShelfInfo currentShelf = shelfInfoService.getByCodeAndLayer(expressInfo.getShelfCode(), expressInfo.getShelfLayer());
             if (currentShelf != null) {
@@ -284,6 +292,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
             }
         }
 
+        // 更新快递记录前先占用目标货架。
         boolean targetUpdated = shelfInfoService.updateUsage(targetShelf.getId(), 1);
         if (!targetUpdated) {
             throw new RuntimeException("占用目标货架空间失败");
@@ -311,6 +320,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
                                           Integer sizeType) {
         String normalizedTrackingNumber = safeTrim(trackingNumber);
         String normalizedReceiverPhone = safeTrim(receiverPhone);
+        // 根据筛选条件动态构造查询。
         return this.lambdaQuery()
                 .eq(status != null, ExpressInfo::getStatus, status)
                 .eq(shelfCode != null, ExpressInfo::getShelfCode, shelfCode)
@@ -330,6 +340,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
     }
 
     private String generatePickupCode(Integer shelfCode, Integer shelfLayer) {
+        // 生成当前货架+层的唯一取件码。
         if (shelfCode == null) {
             throw new RuntimeException("货架编号不能为空");
         }

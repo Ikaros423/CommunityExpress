@@ -25,6 +25,7 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
 
     @Override
     public ShelfInfo getRecommendShelf(Integer sizeType) {
+        // 按类型与占用率推荐货架（优先未满）。
         return this.lambdaQuery()
                 .eq(ShelfInfo::getShelfType, sizeType)
                 .eq(ShelfInfo::getStatus, 1)
@@ -41,6 +42,7 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
                                         Integer status,
                                         Integer shelfCode,
                                         Integer shelfLayer) {
+        // 按类型/状态/编号/层过滤货架。
         return this.lambdaQuery()
                 .eq(shelfType != null, ShelfInfo::getShelfType, shelfType)
                 .eq(status != null, ShelfInfo::getStatus, status)
@@ -65,7 +67,7 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
         // 1. 防止实际容量小于0
         int newUsage = max(currentUsage + delta, 0);
 
-        // 2. 超过最大容量时，我们只在日志或业务层做记录，不抛异常
+        // 2. 超过最大容量只记录日志，不抛异常
         if (newUsage > shelf.getTotalCapacity()) {
             // 这里可以记录一个警告日志，或者在前端返回一个“超额存储”的状态
             System.out.println("警告：货架 " + shelf.getShelfCode() + shelf.getShelfLayer() + " 已超负荷存储！");
@@ -83,6 +85,7 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
         if (shelfCode == null || shelfLayer == null) {
             throw new IllegalArgumentException("shelfCode 和 shelfLayer 不能为空");
         }
+        // 货架编号+层唯一。
         return this.lambdaQuery()
                 .eq(ShelfInfo::getShelfCode, shelfCode)
                 .eq(ShelfInfo::getShelfLayer, shelfLayer)

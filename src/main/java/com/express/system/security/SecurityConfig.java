@@ -49,6 +49,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
+                        // 认证失败统一返回 JSON。
                         .authenticationEntryPoint((request, response, authException) -> {
                             try {
                                 writeJson(response, HttpStatus.UNAUTHORIZED.value(), "未登录或登录已过期");
@@ -74,6 +75,7 @@ public class SecurityConfig {
     }
 
     private void writeJson(HttpServletResponse response, int code, String message) throws Exception {
+        // 确保错误响应以 UTF-8 输出。
         response.setStatus(code);
         response.setCharacterEncoding("UTF-8");
         response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
