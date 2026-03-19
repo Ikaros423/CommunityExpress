@@ -36,8 +36,8 @@ Quick reference for project structure, API conventions, database schema, and ope
   - Body: `ExpressCheckinRequest` (trackingNumber, logisticsCompany, sizeType, receiverName, receiverPhone, shelfCode, shelfLayer, remark, useRecommendShelf).
   - Returns `ApiResponse<ExpressInfo>`.
 - `POST /checkout`
-  - Body: `ExpressCheckoutRequest` with fields `trackingNumber`, `pickupPhone`.
-  - Uses service `checkOut(trackingNumber, pickupPhone)`.
+  - Body: `ExpressCheckoutRequest` with field `trackingNumber`.
+  - Uses service `checkOut(trackingNumber, operatorUsernameAsPhone)` and writes `pickup_phone`.
 - `POST /update`
   - Body: `ExpressInfo` (requires `id`).
   - Updates non-shelf fields; `sizeType` must be changed via `relocate`.
@@ -73,7 +73,7 @@ Quick reference for project structure, API conventions, database schema, and ope
 
 ### SysUserController (`/system/sysUser`)
 - `GET /list`
-  - Query params: `username`, `phone`, `role`, `status` (optional).
+  - Query params: `username`, `role`, `status` (optional).
   - Returns `ApiResponse<List<SysUser>>` (password masked).
 - `GET /detail`
   - Query param: `id`.
@@ -88,7 +88,7 @@ Quick reference for project structure, API conventions, database schema, and ope
   - Query param: `id`.
   - Returns `ApiResponse<Boolean>`.
 - `POST /register`
-  - Body: `SysUserRegisterRequest` (username, password required).
+  - Body: `SysUserRegisterRequest` (username=手机号, password required).
   - Returns `ApiResponse<SysUser>`.
 - `POST /login`
   - Body: `SysUserLoginRequest` (account, password).
@@ -136,8 +136,10 @@ Quick reference for project structure, API conventions, database schema, and ope
 
 ### SysUser module
 - Role type uses enum `UserRole` (ADMIN/STAFF/USER), stored as string.
-- Passwords are BCrypt-hashed; login supports username or phone.
-- `SysUserInitializer` auto-creates default admin (`admin`/`123456`) if no admin exists.
+- Username is the phone number (regex `^1\\d{10}$`); `phone` field removed.
+- Passwords are BCrypt-hashed; login uses username.
+- `SysUserInitializer` auto-creates default admin (`13900000001`/`123456`) if no admin exists.
+- JWT auth enabled: login returns token; token TTL 2h; Authorization `Bearer <token>`.
 - Controller requests use validation annotations; validation errors return 400 with message.
 
 ## Database Schema (from entities)
@@ -171,7 +173,7 @@ Quick reference for project structure, API conventions, database schema, and ope
 ### `sys_user`
 - `id` (PK, auto)
 - `username`, `password`, `nickname`
-- `phone`, `email`, `avatar`
+- `email`, `avatar`
 - `role` (enum: ADMIN/STAFF/USER)
 - `status` (0 disabled, 1 active)
 - `create_time`, `update_time`
