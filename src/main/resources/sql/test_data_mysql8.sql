@@ -10,10 +10,11 @@ SET NAMES utf8mb4;
 -- ========= 清理旧测试数据 =========
 DELETE FROM express_info
 WHERE tracking_number IN
-      ('SF100000001', 'ZT100000002', 'YT100000003', 'JD100000004', 'YD100000005');
+      ('SF100000001', 'ZT100000002', 'YT100000003', 'JD100000004', 'YD100000005',
+       'ST100000006', 'YD100000007');
 
 DELETE FROM shelf_info
-WHERE shelf_code IN (101, 201, 301);
+WHERE shelf_code IN (101, 102, 201, 301, 401);
 
 DELETE FROM sys_user
 WHERE username IN ('13900000001', '13900000002', '13900000003');
@@ -26,8 +27,10 @@ INSERT INTO shelf_info
 VALUES
 (101, 1, '标准小件货架101-1层', 0, 20, 2, '门口区', 10, 1, NOW(), NOW(), 0),
 (101, 2, '标准小件货架101-2层', 0, 20, 1, '门口区', 10, 1, NOW(), NOW(), 0),
+(102, 1, '标准小件货架102-1层', 0, 20, 0, '门口区', 9,  1, NOW(), NOW(), 0),
 (201, 1, '大件货架201-1层',   1, 10, 1, '仓库区', 8,  1, NOW(), NOW(), 0),
-(301, 1, '冷链货架301-1层',   2, 8,  0, '冷链区', 9,  1, NOW(), NOW(), 0);
+(301, 1, '冷链货架301-1层',   2, 8,  1, '冷链区', 9,  1, NOW(), NOW(), 0),
+(401, 1, '易碎货架401-1层',   3, 6,  0, '易碎区', 7,  1, NOW(), NOW(), 0);
 
 -- ========= 快递测试数据 =========
 -- status: 0-待入库, 1-待取件, 2-已取件, 3-已退回
@@ -39,13 +42,15 @@ VALUES
 ('ZT100000002', '中通', 1, '李四', '13800000002', NULL, '201-1-2233', 201, 1, 1, 0, NOW(), NOW(), '大件待取件测试单'),
 ('YT100000003', '圆通', 0, '王五', '13800000003', '13900000003', '101-2-3344', 101, 2, 2, 0, NOW(), NOW(), '已取件状态测试单'),
 ('JD100000004', '京东', 2, '赵六', '13800000004', NULL, '301-1-4455', 301, 1, 1, 0, NOW(), NOW(), '冷链待取件测试单'),
-('YD100000005', '韵达', 3, '周七', '13800000005', NULL, '101-1-5566', 101, 1, 3, 0, NOW(), NOW(), '已退回状态测试单');
+('YD100000005', '韵达', 3, '周七', '13800000005', NULL, '101-1-5566', 101, 1, 3, 0, NOW(), NOW(), '已退回状态测试单'),
+('ST100000006', '申通', 0, '钱八', '13800000006', NULL, '101-1-6677', 101, 1, 1, 0, NOW(), NOW(), '标准件待取件补充单'),
+('YD100000007', '韵达', 0, '孙九', '13800000007', NULL, '102-1-7788', 102, 1, 0, 0, NOW(), NOW(), '待入库状态测试单');
 
 -- ========= 用户测试数据 =========
 -- 密码默认：123456（BCrypt）
 INSERT INTO sys_user
-(username, password, nickname, email, avatar, role, status, create_time, update_time, is_deleted)
+(username, password, nickname, email, role, status, create_time, update_time, is_deleted)
 VALUES
-('13900000001', '$2a$10$7EqJtq98hPqEX7fNZaFWoOHiJj7T8e1koXSPo6e7i0rGUNShUMp1K', '系统管理员', 'admin@example.com', NULL, 'ADMIN', 1, NOW(), NOW(), 0),
-('13900000002', '$2a$10$7EqJtq98hPqEX7fNZaFWoOHiJj7T8e1koXSPo6e7i0rGUNShUMp1K', '驿站员工',   'staff@example.com', NULL, 'STAFF', 1, NOW(), NOW(), 0),
-('13900000003', '$2a$10$7EqJtq98hPqEX7fNZaFWoOHiJj7T8e1koXSPo6e7i0rGUNShUMp1K', '普通用户',   'user@example.com',  NULL, 'USER',  1, NOW(), NOW(), 0);
+('13900000001', '$2a$10$0XFhjAbsHa8tnlOWB/s/FuWkvkL9guwNirYel4HGU3/qWF5Uf2C86', '系统管理员', 'admin@example.com', 'ADMIN', 1, NOW(), NOW(), 0),
+('13900000002', '$2a$10$0XFhjAbsHa8tnlOWB/s/FuWkvkL9guwNirYel4HGU3/qWF5Uf2C86', '驿站员工',   'staff@example.com', 'STAFF', 1, NOW(), NOW(), 0),
+('13900000003', '$2a$10$0XFhjAbsHa8tnlOWB/s/FuWkvkL9guwNirYel4HGU3/qWF5Uf2C86', '普通用户',   'user@example.com',  'USER',  1, NOW(), NOW(), 0);
