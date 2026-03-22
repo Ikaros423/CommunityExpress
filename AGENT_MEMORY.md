@@ -20,6 +20,7 @@ Quick reference for project structure, API conventions, database schema, and ope
 - `src/main/java/com/express/system/common`: `ApiResponse`, `GlobalExceptionHandler`.
 - `src/main/resources/application.properties`: datasource config.
 - `src/main/resources/sql/test_data_mysql8.sql`: test data script.
+- `CommunityExpress.postman_collection.json`: Postman collection with variables and auto-id scripts.
 
 ## API Conventions
 - Base module path: `/system`.
@@ -28,71 +29,75 @@ Quick reference for project structure, API conventions, database schema, and ope
 - Error handling: `RuntimeException` => `400`, other `Exception` => `500`.
 
 ## Implemented APIs
-### ExpressInfoController (`/system/expressInfo`)
-- `GET /list`
+### ExpressInfoController (`/system/expresses`)
+- `GET /system/expresses`
   - Query params: `trackingNumber`, `receiverPhone`, `status`, `shelfCode`, `shelfLayer`, `sizeType` (all optional).
   - Returns `ApiResponse<List<ExpressInfo>>`.
-- `POST /checkin`
+- `GET /system/expresses/{id}`
+  - Returns `ApiResponse<ExpressInfo>`.
+- `POST /system/expresses`
   - Body: `ExpressCheckinRequest` (trackingNumber, logisticsCompany, sizeType, receiverName, receiverPhone, shelfCode, shelfLayer, remark, useRecommendShelf).
   - Returns `ApiResponse<ExpressInfo>`.
-- `POST /checkout`
-  - Body: `ExpressCheckoutRequest` with field `trackingNumber`.
+- `POST /system/expresses/{trackingNumber}/checkout`
   - Uses service `checkOut(trackingNumber, operatorUsernameAsPhone)` and writes `pickup_phone`.
-- `POST /update`
-  - Body: `ExpressInfo` (requires `id`).
+- `PUT /system/expresses/{id}`
+  - Body: `ExpressInfo`.
   - Updates non-shelf fields; `sizeType` must be changed via `relocate`.
-- `POST /delete`
-  - Query param: `id`.
+- `DELETE /system/expresses/{id}`
   - Deletes express; if status=1, releases shelf usage.
-- `POST /relocate`
-  - Body: `ExpressRelocateRequest` (id, shelfCode, shelfLayer, sizeType).
+- `POST /system/expresses/{id}/relocate`
+  - Body: `ExpressRelocateRequest` (shelfCode, shelfLayer, sizeType).
   - If `shelfCode` or `shelfLayer` is missing, auto-assigns via recommend shelf.
 
-### ShelfInfoController (`/system/shelfInfo`)
-- `GET /list`
-  - Query params: `shelfType`, `status`, `shelfCode`, `shelfLayer`, `locationArea` (all optional).
+### ShelfInfoController (`/system/shelves`)
+- `GET /system/shelves`
+  - Query params: `shelfType`, `status`, `shelfCode`, `shelfLayer` (all optional).
   - Returns `ApiResponse<List<ShelfInfo>>`.
-- `GET /detail`
-  - Query param: `id`.
+- `GET /system/shelves/{id}`
   - Returns `ApiResponse<ShelfInfo>`.
-- `GET /byCodeLayer`
+- `GET /system/shelves/lookup`
   - Query params: `shelfCode`, `shelfLayer`.
   - Returns `ApiResponse<ShelfInfo>`.
-- `GET /recommend`
+- `GET /system/shelves/recommend`
   - Query param: `sizeType`.
   - Returns `ApiResponse<ShelfInfo>`.
-- `POST /create`
+- `POST /system/shelves`
   - Body: `ShelfInfo`.
   - Returns `ApiResponse<ShelfInfo>`.
-- `POST /update`
-  - Body: `ShelfInfo` (requires `id`).
+- `PUT /system/shelves/{id}`
+  - Body: `ShelfInfo`.
   - Returns `ApiResponse<ShelfInfo>`.
-- `POST /delete`
-  - Query param: `id`.
+- `DELETE /system/shelves/{id}`
   - Returns `ApiResponse<Boolean>`.
 
-### SysUserController (`/system/sysUser`)
-- `GET /list`
+### SysUserController (`/system/users`)
+- `GET /system/users`
   - Query params: `username`, `role`, `status` (optional).
   - Returns `ApiResponse<List<SysUser>>` (password masked).
-- `GET /detail`
-  - Query param: `id`.
+- `GET /system/users/{id}`
   - Returns `ApiResponse<SysUser>` (password masked).
-- `POST /create`
+- `POST /system/users`
   - Body: `SysUserCreateRequest` (username, password, role required).
   - Returns `ApiResponse<SysUser>`.
-- `POST /update`
-  - Body: `SysUserUpdateRequest` (id required).
+- `PUT /system/users/{id}`
+  - Body: `SysUserUpdateRequest`.
   - Returns `ApiResponse<SysUser>`.
-- `POST /delete`
-  - Query param: `id`.
+- `DELETE /system/users/{id}`
   - Returns `ApiResponse<Boolean>`.
-- `POST /register`
+- `POST /system/users/register`
   - Body: `SysUserRegisterRequest` (username=手机号, password required).
   - Returns `ApiResponse<SysUser>`.
-- `POST /login`
+- `POST /system/users/login`
   - Body: `SysUserLoginRequest` (account, password).
-  - Returns `ApiResponse<SysUser>`.
+  - Returns `ApiResponse<SysUserLoginResponse>` (token + user).
+- `POST /system/users/refresh`
+  - Returns `ApiResponse<SysUserTokenResponse>` (token).
+- `POST /system/users/password-reset/request`
+  - Body: `phone` (手机号/username).
+  - 仅手机号存在时发送验证码；验证码输出到日志。
+- `POST /system/users/password-reset/confirm`
+  - Body: `phone`, `code`, `newPassword`.
+  - 校验验证码后重置密码（BCrypt）。
 
 ## Business Logic Notes
 ### Express check-in
@@ -141,6 +146,12 @@ Quick reference for project structure, API conventions, database schema, and ope
 - `SysUserInitializer` auto-creates default admin (`13900000001`/`123456`) if no admin exists.
 - JWT auth enabled: login returns token; token TTL 2h; Authorization `Bearer <token>`.
 - Controller requests use validation annotations; validation errors return 400 with message.
+- 管理员权限：允许修改自身信息，但不能改角色；不能删除管理员账号；不能修改其他管理员账号。
+- 忘记密码：短信验证码重置（仅日志输出），验证码内存存储，10 分钟有效，最多 5 次尝试。
+
+### Logic Deleted Update
+- MyBatis-Plus 版本不支持 `withLogicDeleted()`，更新逻辑删除数据通过自定义 Mapper SQL 完成：
+  - `selectByIdIncludeDeleted` + `updateByIdIncludeDeleted`（user/express/shelf）。
 
 ## Database Schema (from entities)
 ### `express_info`
@@ -180,13 +191,10 @@ Quick reference for project structure, API conventions, database schema, and ope
 - `is_deleted` (logical delete)
 
 ## Known Gaps / TODO
-- Implement Shelf and User APIs in `ShelfInfoController` and `SysUserController`.
-- Consider DTOs + validation annotations for request bodies.
-- Add authentication/authorization and role-based access if required.
 - Add tests for check-in / check-out and shelf usage updates.
 
 ## Test Data
-- `src/main/resources/sql/test_data_mysql8.sql` seeds sample shelves and expresses.
+- `src/main/resources/sql/test_data_mysql8.sql` seeds shelves/express/users，用户密码为 BCrypt(123456)，并补充 pickupCode 及更多状态样例。
 
 ## Tests
 - Controller 单元测试使用 MockMvc + Mock Service，不依赖数据库。
