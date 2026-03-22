@@ -25,6 +25,8 @@ public interface ISysUserService extends IService<SysUser> {
 
     boolean deleteUser(Long id);
 
+    SysUser getByIdIncludeDeleted(Long id);
+
     SysUser registerUser(String username, String password, String nickname);
 
     SysUser login(String account, String password);

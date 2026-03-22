@@ -38,6 +38,19 @@ public class JwtUtil {
                 .compact();
     }
 
+    public String generateToken(JwtUser user) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + expirationMs);
+        return Jwts.builder()
+                .setSubject(String.valueOf(user.getUserId()))
+                .claim("username", user.getUsername())
+                .claim("role", user.getRole() != null ? user.getRole().name() : null)
+                .setIssuedAt(now)
+                .setExpiration(expiry)
+                .signWith(secretKey, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
     public JwtUser parseToken(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(secretKey)

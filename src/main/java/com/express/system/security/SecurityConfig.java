@@ -4,6 +4,7 @@ import com.express.system.common.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -31,20 +32,26 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/system/sysUser/login",
-                                "/system/sysUser/register"
+                                "/system/users/login",
+                                "/system/users/register",
+                                "/system/users/password-reset/request",
+                                "/system/users/password-reset/confirm"
                         ).permitAll()
+                        .requestMatchers("/system/users/refresh")
+                        .hasAnyRole("USER", "STAFF", "ADMIN")
                         .requestMatchers(
                                 "/doc.html",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
-                        .requestMatchers("/system/expressInfo/list", "/system/expressInfo/checkout")
+                        .requestMatchers(HttpMethod.GET, "/system/expresses")
                         .hasAnyRole("USER", "STAFF", "ADMIN")
-                        .requestMatchers("/system/expressInfo/**", "/system/shelfInfo/**")
+                        .requestMatchers(HttpMethod.POST, "/system/expresses/*/checkout")
+                        .hasAnyRole("USER", "STAFF", "ADMIN")
+                        .requestMatchers("/system/expresses/**", "/system/shelves/**")
                         .hasAnyRole("STAFF", "ADMIN")
-                        .requestMatchers("/system/sysUser/**")
+                        .requestMatchers("/system/users/**")
                         .hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

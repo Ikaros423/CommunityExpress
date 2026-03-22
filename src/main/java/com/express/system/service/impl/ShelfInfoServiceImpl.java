@@ -150,7 +150,7 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
         if (shelfInfo == null || shelfInfo.getId() == null) {
             throw new RuntimeException("货架ID不能为空");
         }
-        ShelfInfo existing = this.getById(shelfInfo.getId());
+        ShelfInfo existing = this.baseMapper.selectByIdIncludeDeleted(shelfInfo.getId());
         if (existing == null) {
             throw new RuntimeException("货架不存在");
         }
@@ -163,11 +163,11 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
         }
 
         shelfInfo.setUpdateTime(LocalDateTime.now());
-        boolean updated = this.updateById(shelfInfo);
+        boolean updated = this.baseMapper.updateByIdIncludeDeleted(shelfInfo) > 0;
         if (!updated) {
             throw new RuntimeException("更新货架失败");
         }
-        return this.getById(shelfInfo.getId());
+        return this.baseMapper.selectByIdIncludeDeleted(shelfInfo.getId());
     }
 
     @Override

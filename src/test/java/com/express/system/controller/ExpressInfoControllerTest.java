@@ -4,9 +4,7 @@ import com.express.system.entity.ExpressInfo;
 import com.express.system.entity.enums.UserRole;
 import com.express.system.security.JwtUser;
 import com.express.system.service.IExpressInfoService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -48,9 +46,6 @@ class ExpressInfoControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
     @MockBean
     private IExpressInfoService expressInfoService;
 
@@ -69,7 +64,7 @@ class ExpressInfoControllerTest {
 
         try {
             // 断言接口返回成功。
-            mockMvc.perform(get("/system/expressInfo/list")
+            mockMvc.perform(get("/system/expresses")
                             .param("trackingNumber", "SF100000001"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(200));
@@ -93,7 +88,7 @@ class ExpressInfoControllerTest {
 
         try {
             // 断言返回成功。
-            mockMvc.perform(get("/system/expressInfo/list")
+            mockMvc.perform(get("/system/expresses")
                             .param("trackingNumber", "SF100000001")
                             .param("receiverPhone", "13900000001")
                             .param("status", "1")
@@ -117,9 +112,7 @@ class ExpressInfoControllerTest {
 
         try {
             // 仅传单号发起出库。
-            mockMvc.perform(post("/system/expressInfo/checkout")
-                            .contentType("application/json")
-                            .content("{\"trackingNumber\":\"SF100000001\"}"))
+            mockMvc.perform(post("/system/expresses/SF100000001/checkout"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(200));
 

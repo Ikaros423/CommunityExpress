@@ -4,8 +4,8 @@ import com.express.system.entity.SysUser;
 import com.express.system.entity.enums.UserRole;
 import com.express.system.security.JwtUtil;
 import com.express.system.service.ISysUserService;
+import com.express.system.service.PasswordResetService;
 import com.express.system.common.GlobalExceptionHandler;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -23,6 +23,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -48,14 +49,14 @@ class SysUserControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
     @MockBean
     private ISysUserService sysUserService;
 
     @MockBean
     private JwtUtil jwtUtil;
+
+    @MockBean
+    private PasswordResetService passwordResetService;
 
     @Test
     void registerReturnsUser() throws Exception {
@@ -65,7 +66,7 @@ class SysUserControllerTest {
         user.setUsername("13900000003");
         when(sysUserService.registerUser(eq("13900000003"), eq("123456"), eq("普通用户"))).thenReturn(user);
 
-        mockMvc.perform(post("/system/sysUser/register")
+        mockMvc.perform(post("/system/users/register")
                         .contentType("application/json")
                         .content("{\"username\":\"13900000003\",\"password\":\"123456\",\"nickname\":\"普通用户\"}"))
                 .andExpect(status().isOk())
@@ -83,7 +84,7 @@ class SysUserControllerTest {
         when(sysUserService.login(eq("13900000001"), eq("123456"))).thenReturn(user);
         when(jwtUtil.generateToken(any(SysUser.class))).thenReturn("token-123");
 
-        mockMvc.perform(post("/system/sysUser/login")
+        mockMvc.perform(post("/system/users/login")
                         .contentType("application/json")
                         .content("{\"account\":\"13900000001\",\"password\":\"123456\"}"))
                 .andExpect(status().isOk())
@@ -100,9 +101,33 @@ class SysUserControllerTest {
         user.setUsername("13900000002");
         when(sysUserService.listByFilter(eq(null), eq(null), eq(null))).thenReturn(List.of(user));
 
-        mockMvc.perform(get("/system/sysUser/list"))
+        mockMvc.perform(get("/system/users"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data[0].username").value("13900000002"));
+    }
+
+    @Test
+    void requestPasswordResetReturnsSuccess() throws Exception {
+        // 请求短信验证码：手机号存在时返回成功。
+        when(passwordResetService.requestCode(eq("13900000003"))).thenReturn("123456");
+
+        mockMvc.perform(post("/system/users/password-reset/request")
+                        .contentType("application/json")
+                        .content("{\"phone\":\"13900000003\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+    }
+
+    @Test
+    void confirmPasswordResetInvokesService() throws Exception {
+        mockMvc.perform(post("/system/users/password-reset/confirm")
+                        .contentType("application/json")
+                        .content("{\"phone\":\"13900000003\",\"code\":\"123456\",\"newPassword\":\"654321\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        verify(passwordResetService)
+                .confirmReset(eq("13900000003"), eq("123456"), eq("654321"));
     }
 }

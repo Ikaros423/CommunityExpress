@@ -54,7 +54,7 @@ class ShelfInfoControllerTest {
         when(shelfInfoService.listByFilter(eq(null), eq(null), eq(null), eq(null)))
                 .thenReturn(List.of(shelf));
 
-        mockMvc.perform(get("/system/shelfInfo/list"))
+        mockMvc.perform(get("/system/shelves"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data[0].shelfCode").value(101));

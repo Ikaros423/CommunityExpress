@@ -157,7 +157,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
         if (expressInfo == null || expressInfo.getId() == null) {
             throw new RuntimeException("快递ID不能为空");
         }
-        ExpressInfo existing = this.getById(expressInfo.getId());
+        ExpressInfo existing = this.baseMapper.selectByIdIncludeDeleted(expressInfo.getId());
         if (existing == null) {
             throw new RuntimeException("快递不存在");
         }
@@ -207,11 +207,11 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
         expressInfo.setSizeType(null);
 
         expressInfo.setUpdateTime(LocalDateTime.now());
-        boolean updated = this.updateById(expressInfo);
+        boolean updated = this.baseMapper.updateByIdIncludeDeleted(expressInfo) > 0;
         if (!updated) {
             throw new RuntimeException("更新快递失败");
         }
-        return this.getById(expressInfo.getId());
+        return this.baseMapper.selectByIdIncludeDeleted(expressInfo.getId());
     }
 
     @Override
