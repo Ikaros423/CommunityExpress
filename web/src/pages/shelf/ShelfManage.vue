@@ -138,6 +138,20 @@ const statusLabelMap = {
 
 const getTypeLabel = (value) => typeLabelMap[value] ?? String(value ?? '-');
 const getStatusLabel = (value) => statusLabelMap[value] ?? String(value ?? '-');
+const getLoadRatioLabel = (row) => {
+  if (typeof row.loadRate === 'number') {
+    return `${Math.round(row.loadRate * 100)}%`;
+  }
+  if (row.loadRate !== null && row.loadRate !== undefined && row.loadRate !== '') {
+    return `${Math.round(Number(row.loadRate) * 100)}%`;
+  }
+  const total = Number(row.totalCapacity || 0);
+  if (total <= 0) {
+    return '0%';
+  }
+  const current = Number(row.currentUsage || 0);
+  return `${Math.round((current / total) * 100)}%`;
+};
 
 const editRules = {
   shelfCode: buildRequiredNumberRule('编号不能为空'),
@@ -157,7 +171,7 @@ const createRules = {
 const fetchList = async () => {
   try {
     loading.value = true;
-    const res = await api.listShelves({
+    const res = await api.listShelfLoads({
       shelfCode: filters.shelfCode || undefined,
       shelfLayer: filters.shelfLayer || undefined,
       status: filters.status ?? undefined
@@ -281,6 +295,22 @@ const columns = [
     }
   },
   { title: '容量', key: 'totalCapacity' },
+  {
+    title: '当前负载',
+    key: 'currentUsage',
+    render(row) {
+      const current = row.currentUsage ?? 0;
+      const total = row.totalCapacity ?? 0;
+      return `${current}/${total}`;
+    }
+  },
+  {
+    title: '负载率',
+    key: 'loadRate',
+    render(row) {
+      return getLoadRatioLabel(row);
+    }
+  },
   {
     title: '状态',
     key: 'status',

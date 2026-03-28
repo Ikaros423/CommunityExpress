@@ -1,5 +1,6 @@
 package com.express.system.service;
 
+import com.express.system.dto.ShelfLoadVO;
 import com.express.system.entity.ShelfInfo;
 import com.baomidou.mybatisplus.extension.service.IService;
 
@@ -49,6 +50,11 @@ public interface IShelfInfoService extends IService<ShelfInfo> {
                                            Integer status,
                                            Integer shelfCode,
                                            Integer shelfLayer);
+
+    java.util.List<ShelfLoadVO> listLoadByFilter(Integer shelfType,
+                                                 Integer status,
+                                                 Integer shelfCode,
+                                                 Integer shelfLayer);
 
     /**
      * 获取货架详情

@@ -1,5 +1,6 @@
 package com.express.system.service.impl;
 
+import com.express.system.dto.ShelfLoadVO;
 import com.express.system.entity.ShelfInfo;
 import com.express.system.mapper.ShelfInfoMapper;
 import com.express.system.service.IShelfInfoService;
@@ -7,8 +8,11 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static java.lang.Integer.max;
 
@@ -50,6 +54,17 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
                 .eq(shelfLayer != null, ShelfInfo::getShelfLayer, shelfLayer)
                 .orderByAsc(ShelfInfo::getShelfCode, ShelfInfo::getShelfLayer)
                 .list();
+    }
+
+    @Override
+    public List<ShelfLoadVO> listLoadByFilter(Integer shelfType,
+                                              Integer status,
+                                              Integer shelfCode,
+                                              Integer shelfLayer) {
+        return listByFilter(shelfType, status, shelfCode, shelfLayer)
+                .stream()
+                .map(this::toLoadVO)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -185,5 +200,29 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
             throw new RuntimeException("删除货架失败");
         }
         return true;
+    }
+
+    private ShelfLoadVO toLoadVO(ShelfInfo shelf) {
+        ShelfLoadVO vo = new ShelfLoadVO();
+        vo.setId(shelf.getId());
+        vo.setShelfCode(shelf.getShelfCode());
+        vo.setShelfLayer(shelf.getShelfLayer());
+        vo.setShelfName(shelf.getShelfName());
+        vo.setShelfType(shelf.getShelfType());
+        vo.setStatus(shelf.getStatus());
+
+        int currentUsage = shelf.getCurrentUsage() == null ? 0 : shelf.getCurrentUsage();
+        int totalCapacity = shelf.getTotalCapacity() == null ? 0 : shelf.getTotalCapacity();
+        vo.setCurrentUsage(currentUsage);
+        vo.setTotalCapacity(totalCapacity);
+
+        if (totalCapacity <= 0) {
+            vo.setLoadRate(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+        } else {
+            BigDecimal loadRate = BigDecimal.valueOf(currentUsage)
+                    .divide(BigDecimal.valueOf(totalCapacity), 2, RoundingMode.HALF_UP);
+            vo.setLoadRate(loadRate);
+        }
+        return vo;
     }
 }

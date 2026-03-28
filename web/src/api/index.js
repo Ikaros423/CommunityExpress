@@ -16,6 +16,7 @@ export const api = {
   deleteExpress: (id) => http.delete(`/system/expresses/${id}`),
 
   listShelves: (params) => http.get('/system/shelves', { params }),
+  listShelfLoads: (params) => http.get('/system/shelves/load', { params }),
   getShelf: (id) => http.get(`/system/shelves/${id}`),
   recommendShelf: (params) => http.get('/system/shelves/recommend', { params }),
   lookupShelf: (params) => http.get('/system/shelves/lookup', { params }),

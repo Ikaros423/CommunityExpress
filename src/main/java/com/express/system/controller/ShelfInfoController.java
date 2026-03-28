@@ -1,6 +1,7 @@
 package com.express.system.controller;
 
 import com.express.system.common.ApiResponse;
+import com.express.system.dto.ShelfLoadVO;
 import com.express.system.entity.ShelfInfo;
 import com.express.system.service.IShelfInfoService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,6 +44,17 @@ public class ShelfInfoController {
             @Parameter(description = "货架编号") @RequestParam(value = "shelfCode", required = false) Integer shelfCode,
             @Parameter(description = "货架层数") @RequestParam(value = "shelfLayer", required = false) Integer shelfLayer) {
         return ApiResponse.success(shelfInfoService.listByFilter(
+                shelfType, status, shelfCode, shelfLayer));
+    }
+
+    @Operation(summary = "货架负载查询")
+    @GetMapping("/load")
+    public ApiResponse<List<ShelfLoadVO>> load(
+            @Parameter(description = "货架类型") @RequestParam(value = "shelfType", required = false) Integer shelfType,
+            @Parameter(description = "货架状态") @RequestParam(value = "status", required = false) Integer status,
+            @Parameter(description = "货架编号") @RequestParam(value = "shelfCode", required = false) Integer shelfCode,
+            @Parameter(description = "货架层数") @RequestParam(value = "shelfLayer", required = false) Integer shelfLayer) {
+        return ApiResponse.success(shelfInfoService.listLoadByFilter(
                 shelfType, status, shelfCode, shelfLayer));
     }
 
