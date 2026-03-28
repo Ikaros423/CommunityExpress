@@ -102,7 +102,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (user == null || user.getId() == null) {
             throw new RuntimeException("用户ID不能为空");
         }
-        SysUser existing = this.baseMapper.selectByIdIncludeDeleted(user.getId());
+        SysUser existing = this.getById(user.getId());
         if (existing == null) {
             throw new RuntimeException("用户不存在");
         }
@@ -141,11 +141,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
 
         updateEntity.setUpdateTime(LocalDateTime.now());
-        boolean updated = this.baseMapper.updateByIdIncludeDeleted(updateEntity) > 0;
+        boolean updated = this.updateById(updateEntity);
         if (!updated) {
             throw new RuntimeException("更新用户失败");
         }
-        SysUser updatedUser = this.baseMapper.selectByIdIncludeDeleted(user.getId());
+        SysUser updatedUser = this.getById(user.getId());
         if (updatedUser != null) {
             updatedUser.setPassword(null);
         }
@@ -226,14 +226,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         user.setPassword(null);
         return user;
-    }
-
-    @Override
-    public SysUser getByIdIncludeDeleted(Long id) {
-        if (id == null) {
-            throw new RuntimeException("用户ID不能为空");
-        }
-        return this.baseMapper.selectByIdIncludeDeleted(id);
     }
 
     private void checkUsernameUnique(String username, Long excludeId) {

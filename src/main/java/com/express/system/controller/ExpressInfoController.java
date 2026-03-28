@@ -56,7 +56,7 @@ public class ExpressInfoController {
                 throw new RuntimeException("当前用户未绑定手机号");
             }
             return ApiResponse.success(expressInfoService.listByFilter(
-                    trackingNumber, phone, null, null, null, null));
+                    trackingNumber, phone, status, null, null, null));
         }
         return ApiResponse.success(expressInfoService.listByFilter(
                 trackingNumber, receiverPhone, status, shelfCode, shelfLayer, sizeType));

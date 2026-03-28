@@ -21,6 +21,7 @@ Quick reference for project structure, API conventions, database schema, and ope
 - `src/main/resources/application.properties`: datasource config.
 - `src/main/resources/sql/test_data_mysql8.sql`: test data script.
 - `CommunityExpress.postman_collection.json`: Postman collection with variables and auto-id scripts.
+- `web/`: Vue 3 前端（Vite + Naive UI + Pinia + Vue Router + Axios）。
 
 ## API Conventions
 - Base module path: `/system`.
@@ -99,6 +100,21 @@ Quick reference for project structure, API conventions, database schema, and ope
   - Body: `phone`, `code`, `newPassword`.
   - 校验验证码后重置密码（BCrypt）。
 
+## Frontend (Vue 3)
+- 目录：`web/`
+- 技术栈：Vue 3 + Vite + Naive UI + Pinia + Vue Router + Axios。
+- 角色路由：USER/STAFF/ADMIN，根据 JWT + 登录响应控制权限。
+- 页面模块：
+  - 登录 / 注册 / 忘记密码（短信验证码）
+  - USER：快递查询、出库快捷入口
+  - STAFF：快递入库/换柜/管理，货架管理
+  - ADMIN：用户管理（含角色限制）
+- 编辑弹窗：快递/货架/用户列表均提供编辑更新弹窗（NModal + NForm），提交后刷新列表并保留筛选条件。
+- 表单校验：手机号、密码长度与后端规则一致；必填项前端拦截（手机号正则 `^1\\d{10}$`，密码 6-20）。
+- 请求约定：统一 `ApiResponse`，`/system` 代理到后端；API 已对接到可直接演示。
+- 交互优化：列表请求带 loading；错误提示优先展示后端 message。
+- 用户端出库入口：快递查询页顶部提供单号出库输入框与按钮，仅 USER 可见。
+
 ## Business Logic Notes
 ### Express check-in
 - Requires: `trackingNumber`, `receiverPhone`, `sizeType`.
@@ -149,10 +165,6 @@ Quick reference for project structure, API conventions, database schema, and ope
 - 管理员权限：允许修改自身信息，但不能改角色；不能删除管理员账号；不能修改其他管理员账号。
 - 忘记密码：短信验证码重置（仅日志输出），验证码内存存储，10 分钟有效，最多 5 次尝试。
 
-### Logic Deleted Update
-- MyBatis-Plus 版本不支持 `withLogicDeleted()`，更新逻辑删除数据通过自定义 Mapper SQL 完成：
-  - `selectByIdIncludeDeleted` + `updateByIdIncludeDeleted`（user/express/shelf）。
-
 ## Database Schema (from entities)
 ### `express_info`
 - `id` (PK, auto)
@@ -200,3 +212,4 @@ Quick reference for project structure, API conventions, database schema, and ope
 - Controller 单元测试使用 MockMvc + Mock Service，不依赖数据库。
 - 覆盖：`SysUserControllerTest`, `ExpressInfoControllerTest`, `ShelfInfoControllerTest`。
 - `CommunityExpressApplicationTests` 为 contextLoads，标记为跳过（避免数据库依赖）。
+- 前端暂无自动化测试。

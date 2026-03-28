@@ -92,7 +92,7 @@ public class SysUserController {
     public ApiResponse<SysUser> update(@Parameter(description = "用户ID") @PathVariable("id") Long id,
                                        @Valid @RequestBody SysUserUpdateRequest request) {
         JwtUser currentUser = getCurrentUser();
-        SysUser targetUser = sysUserService.getByIdIncludeDeleted(id);
+        SysUser targetUser = sysUserService.getById(id);
         if (targetUser == null) {
             throw new RuntimeException("用户不存在");
         }
