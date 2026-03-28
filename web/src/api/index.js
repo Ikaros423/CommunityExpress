@@ -1,0 +1,31 @@
+import http from './http';
+
+export const api = {
+  login: (payload) => http.post('/system/users/login', payload),
+  register: (payload) => http.post('/system/users/register', payload),
+  refresh: () => http.post('/system/users/refresh'),
+  requestResetCode: (payload) => http.post('/system/users/password-reset/request', payload),
+  confirmReset: (payload) => http.post('/system/users/password-reset/confirm', payload),
+
+  listExpresses: (params) => http.get('/system/expresses', { params }),
+  getExpress: (id) => http.get(`/system/expresses/${id}`),
+  checkIn: (payload) => http.post('/system/expresses', payload),
+  checkOut: (trackingNumber) => http.post(`/system/expresses/${trackingNumber}/checkout`),
+  updateExpress: (id, payload) => http.put(`/system/expresses/${id}`, payload),
+  relocateExpress: (id, payload) => http.post(`/system/expresses/${id}/relocate`, payload),
+  deleteExpress: (id) => http.delete(`/system/expresses/${id}`),
+
+  listShelves: (params) => http.get('/system/shelves', { params }),
+  getShelf: (id) => http.get(`/system/shelves/${id}`),
+  recommendShelf: (params) => http.get('/system/shelves/recommend', { params }),
+  lookupShelf: (params) => http.get('/system/shelves/lookup', { params }),
+  createShelf: (payload) => http.post('/system/shelves', payload),
+  updateShelf: (id, payload) => http.put(`/system/shelves/${id}`, payload),
+  deleteShelf: (id) => http.delete(`/system/shelves/${id}`),
+
+  listUsers: (params) => http.get('/system/users', { params }),
+  getUser: (id) => http.get(`/system/users/${id}`),
+  createUser: (payload) => http.post('/system/users', payload),
+  updateUser: (id, payload) => http.put(`/system/users/${id}`, payload),
+  deleteUser: (id) => http.delete(`/system/users/${id}`)
+};
