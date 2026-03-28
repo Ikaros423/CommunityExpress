@@ -139,18 +139,61 @@ const statusLabelMap = {
 const getTypeLabel = (value) => typeLabelMap[value] ?? String(value ?? '-');
 const getStatusLabel = (value) => statusLabelMap[value] ?? String(value ?? '-');
 const getLoadRatioLabel = (row) => {
+  const ratio = getLoadRatioNumber(row);
+  return `${Math.round(ratio * 100)}%`;
+};
+
+const getLoadRatioNumber = (row) => {
   if (typeof row.loadRate === 'number') {
-    return `${Math.round(row.loadRate * 100)}%`;
+    return row.loadRate;
   }
   if (row.loadRate !== null && row.loadRate !== undefined && row.loadRate !== '') {
-    return `${Math.round(Number(row.loadRate) * 100)}%`;
+    return Number(row.loadRate);
   }
   const total = Number(row.totalCapacity || 0);
   if (total <= 0) {
-    return '0%';
+    return 0;
   }
   const current = Number(row.currentUsage || 0);
-  return `${Math.round((current / total) * 100)}%`;
+  return current / total;
+};
+
+const getLoadRatioClass = (row) => {
+  const ratio = getLoadRatioNumber(row);
+  if (ratio >= 1) {
+    return 'load-rate-over';
+  }
+  if (ratio >= 0.8) {
+    return 'load-rate-high';
+  }
+  if (ratio >= 0.5) {
+    return 'load-rate-medium';
+  }
+  return 'load-rate-low';
+};
+
+const getLoadRatioStyle = (row) => {
+  const ratio = getLoadRatioNumber(row);
+  const baseStyle = {
+    display: 'inline-block',
+    minWidth: '52px',
+    padding: '2px 8px',
+    borderRadius: '999px',
+    textAlign: 'center',
+    fontWeight: 600,
+    fontSize: '12px'
+  };
+
+  if (ratio >= 1) {
+    return { ...baseStyle, background: '#fde8e8', color: '#b42318' };
+  }
+  if (ratio >= 0.8) {
+    return { ...baseStyle, background: '#ffe8d9', color: '#b54708' };
+  }
+  if (ratio >= 0.5) {
+    return { ...baseStyle, background: '#fff6dc', color: '#8a5b00' };
+  }
+  return { ...baseStyle, background: '#e8f7ef', color: '#1f7a45' };
 };
 
 const editRules = {
@@ -308,7 +351,11 @@ const columns = [
     title: '负载率',
     key: 'loadRate',
     render(row) {
-      return getLoadRatioLabel(row);
+      return h(
+        'span',
+        { style: getLoadRatioStyle(row), class: getLoadRatioClass(row) },
+        getLoadRatioLabel(row)
+      );
     }
   },
   {
@@ -340,3 +387,35 @@ const columns = [
 
 onMounted(fetchList);
 </script>
+
+<style scoped>
+.load-rate-tag {
+  display: inline-block;
+  min-width: 52px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.load-rate-low {
+  background: #e8f7ef;
+  color: #1f7a45;
+}
+
+.load-rate-medium {
+  background: #fff6dc;
+  color: #8a5b00;
+}
+
+.load-rate-high {
+  background: #ffe8d9;
+  color: #b54708;
+}
+
+.load-rate-over {
+  background: #fde8e8;
+  color: #b42318;
+}
+</style>

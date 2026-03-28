@@ -5,6 +5,8 @@ import com.express.system.entity.ShelfInfo;
 import com.express.system.mapper.ShelfInfoMapper;
 import com.express.system.service.IShelfInfoService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,8 @@ import static java.lang.Integer.max;
  */
 @Service
 public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo> implements IShelfInfoService {
+
+    private static final Logger log = LoggerFactory.getLogger(ShelfInfoServiceImpl.class);
 
     @Override
     public ShelfInfo getRecommendShelf(Integer sizeType) {
@@ -84,8 +88,8 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
 
         // 2. 超过最大容量只记录日志，不抛异常
         if (newUsage > shelf.getTotalCapacity()) {
-            // 这里可以记录一个警告日志，或者在前端返回一个“超额存储”的状态
-            System.out.println("警告：货架 " + shelf.getShelfCode() + shelf.getShelfLayer() + " 已超负荷存储！");
+            log.warn("警告：货架 {}-{} 已超负荷存储（当前占用: {}, 容量: {}）",
+                    shelf.getShelfCode(), shelf.getShelfLayer(), newUsage, shelf.getTotalCapacity());
         }
 
         // 3. 执行更新
