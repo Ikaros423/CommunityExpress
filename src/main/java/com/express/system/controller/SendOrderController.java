@@ -1,21 +1,20 @@
 package com.express.system.controller;
 
 import com.express.system.common.ApiResponse;
+import com.express.system.common.page.PageResponse;
+import com.express.system.dto.query.SendOrderPageQuery;
 import com.express.system.entity.SendOrder;
 import com.express.system.entity.enums.UserRole;
+import com.express.system.security.CurrentUserProvider;
 import com.express.system.security.JwtUser;
 import com.express.system.service.ISendOrderService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,10 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/system/send-orders")
@@ -34,16 +30,19 @@ import java.util.List;
 @Validated
 public class SendOrderController {
 
-    @Autowired
-    private ISendOrderService sendOrderService;
+    private final ISendOrderService sendOrderService;
+    private final CurrentUserProvider currentUserProvider;
+
+    public SendOrderController(ISendOrderService sendOrderService,
+                               CurrentUserProvider currentUserProvider) {
+        this.sendOrderService = sendOrderService;
+        this.currentUserProvider = currentUserProvider;
+    }
 
     @Operation(summary = "创建寄件申请")
     @PostMapping
     public ApiResponse<SendOrder> create(@Valid @RequestBody SendOrderCreateRequest request) {
-        JwtUser currentUser = getCurrentUser();
-        if (currentUser == null || currentUser.getRole() != UserRole.USER) {
-            throw new RuntimeException("仅普通用户可提交寄件申请");
-        }
+        JwtUser currentUser = currentUserProvider.requireRole(UserRole.USER);
         SendOrder created = sendOrderService.createForUser(
                 currentUser.getUserId(),
                 currentUser.getUsername(),
@@ -59,28 +58,22 @@ public class SendOrderController {
 
     @Operation(summary = "寄件申请列表查询")
     @GetMapping
-    public ApiResponse<List<SendOrder>> list(
-            @Parameter(description = "状态筛选") @RequestParam(value = "status", required = false) Byte status,
-            @Parameter(description = "寄件人手机号筛选（员工/管理员）")
-            @RequestParam(value = "senderPhone", required = false) String senderPhone) {
-        JwtUser currentUser = getCurrentUser();
-        if (currentUser == null) {
-            throw new RuntimeException("未登录或登录已过期");
+    public ApiResponse<PageResponse<SendOrder>> list(SendOrderPageQuery query) {
+        if (query == null) {
+            query = new SendOrderPageQuery();
         }
+        JwtUser currentUser = currentUserProvider.getCurrentUserOrThrow();
         if (currentUser.getRole() == UserRole.USER) {
-            return ApiResponse.success(sendOrderService.listByUser(currentUser.getUserId(), status));
+            return ApiResponse.success(sendOrderService.pageByUser(currentUser.getUserId(), query.getStatus(), query));
         }
-        return ApiResponse.success(sendOrderService.listForStaff(status, senderPhone));
+        return ApiResponse.success(sendOrderService.pageForStaff(query.getStatus(), query.getSenderPhone(), query));
     }
 
     @Operation(summary = "更新寄件申请状态")
     @PutMapping("/{id}/status")
     public ApiResponse<SendOrder> updateStatus(@PathVariable("id") Long id,
                                                @Valid @RequestBody SendOrderStatusUpdateRequest request) {
-        JwtUser currentUser = getCurrentUser();
-        if (currentUser == null || (currentUser.getRole() != UserRole.STAFF && currentUser.getRole() != UserRole.ADMIN)) {
-            throw new RuntimeException("仅员工或管理员可更新寄件状态");
-        }
+        currentUserProvider.requireRole(UserRole.STAFF, UserRole.ADMIN);
         return ApiResponse.success("更新成功", sendOrderService.updateStatus(id, request.getStatus()));
     }
 
@@ -183,13 +176,5 @@ public class SendOrderController {
         public void setStatus(Byte status) {
             this.status = status;
         }
-    }
-
-    private JwtUser getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof JwtUser)) {
-            return null;
-        }
-        return (JwtUser) authentication.getPrincipal();
     }
 }

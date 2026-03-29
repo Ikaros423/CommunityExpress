@@ -1,5 +1,6 @@
 package com.express.system.service;
 
+import com.express.system.common.exception.BusinessException;
 import com.express.system.entity.SysUser;
 import com.express.system.entity.enums.SmsBizType;
 import com.express.system.mapper.SysUserMapper;
@@ -36,10 +37,10 @@ public class PasswordResetService {
                         .eq("is_deleted", 0)
         );
         if (user == null) {
-            throw new RuntimeException("手机号不存在");
+            throw BusinessException.badRequest("手机号不存在");
         }
         if (user.getStatus() != null && user.getStatus() == 0) {
-            throw new RuntimeException("账号已被禁用");
+            throw BusinessException.badRequest("账号已被禁用");
         }
         SysUser update = new SysUser();
         update.setId(user.getId());

@@ -1,5 +1,7 @@
 package com.express.system.common;
 
+import com.express.system.common.error.ErrorCode;
+import com.express.system.common.exception.BusinessException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -12,6 +14,14 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(BusinessException.class)
+    public ApiResponse<Void> handleBusinessException(BusinessException ex, HttpServletResponse response) {
+        setUtf8(response);
+        ErrorCode errorCode = ex.getErrorCode();
+        int code = errorCode == null ? 400 : errorCode.getCode();
+        return ApiResponse.error(code, ex.getMessage());
+    }
 
     @ExceptionHandler(RuntimeException.class)
     public ApiResponse<Void> handleRuntimeException(RuntimeException ex, HttpServletResponse response) {

@@ -1,5 +1,11 @@
 package com.express.system.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.express.system.common.exception.BusinessException;
+import com.express.system.common.page.PageRequest;
+import com.express.system.common.page.PageResponse;
 import com.express.system.entity.ExpressInfo;
 import com.express.system.entity.ExpressUserBinding;
 import com.express.system.entity.ShelfInfo;
@@ -17,9 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 import com.express.system.controller.ExpressInfoController.ExpressCheckinRequest;
@@ -45,25 +49,25 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
     @Transactional(rollbackFor = Exception.class)
     public ExpressInfo checkIn(ExpressCheckinRequest expressInfo) {
         if (expressInfo == null) {
-            throw new RuntimeException("入库参数不能为空");
+            throw BusinessException.badRequest("入库参数不能为空");
         }
         String trackingNumber = safeTrim(expressInfo.getTrackingNumber());
         if (trackingNumber == null || trackingNumber.isBlank()) {
-            throw new RuntimeException("快递单号不能为空");
+            throw BusinessException.badRequest("快递单号不能为空");
         }
         String receiverPhone = safeTrim(expressInfo.getReceiverPhone());
         if (receiverPhone == null || receiverPhone.isBlank()) {
-            throw new RuntimeException("收件人手机号不能为空");
+            throw BusinessException.badRequest("收件人手机号不能为空");
         }
         if (expressInfo.getSizeType() == null) {
-            throw new RuntimeException("快递规格不能为空");
+            throw BusinessException.badRequest("快递规格不能为空");
         }
 
         long existing = this.lambdaQuery()
                 .eq(ExpressInfo::getTrackingNumber, trackingNumber)
                 .count();
         if (existing > 0) {
-            throw new RuntimeException("该快递单号已存在，请勿重复入库");
+            throw BusinessException.badRequest("该快递单号已存在，请勿重复入库");
         }
 
         // 选择目标货架：推荐或指定的货架编号+层。
@@ -71,15 +75,15 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
         if (expressInfo.getUseRecommendShelf()) {
             shelf = shelfInfoService.getRecommendShelf((int) expressInfo.getSizeType());
             if (shelf == null) {
-                throw new RuntimeException("没有可用货架，请先新增或启用货架");
+                throw BusinessException.badRequest("没有可用货架，请先新增或启用货架");
             }
         } else {
             shelf = shelfInfoService.getByCodeAndLayer(expressInfo.getShelfCode(), expressInfo.getShelfLayer());
             if (shelf == null) {
-                throw new RuntimeException("手动选择的货架不存在");
+                throw BusinessException.badRequest("手动选择的货架不存在");
             }
             if (shelf.getStatus() == null || shelf.getStatus() != 1) {
-                throw new RuntimeException("手动选择的货架不可用");
+                throw BusinessException.badRequest("手动选择的货架不可用");
             }
         }
 
@@ -101,13 +105,13 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
 
         boolean saved = this.save(storeExpressInfo);
         if (!saved) {
-            throw new RuntimeException("快递入库失败");
+            throw BusinessException.badRequest("快递入库失败");
         }
 
         // 保存成功后占用货架容量。
         boolean shelfUpdated = shelfInfoService.updateUsage(shelf.getId(), 1);
         if (!shelfUpdated) {
-            throw new RuntimeException("更新货架占用失败");
+            throw BusinessException.badRequest("更新货架占用失败");
         }
 
         return storeExpressInfo;
@@ -118,11 +122,11 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
     public boolean checkOut(String trackingNumber, String pickupPhone, UserRole operatorRole, Long operatorUserId) {
         String normalizedTrackingNumber = safeTrim(trackingNumber);
         if (normalizedTrackingNumber == null || normalizedTrackingNumber.isBlank()) {
-            throw new RuntimeException("快递单号不能为空");
+            throw BusinessException.badRequest("快递单号不能为空");
         }
         String normalizedPickupPhone = safeTrim(pickupPhone);
         if (normalizedPickupPhone == null || normalizedPickupPhone.isBlank()) {
-            throw new RuntimeException("实际取件人手机号不能为空");
+            throw BusinessException.badRequest("实际取件人手机号不能为空");
         }
 
         ExpressInfo expressInfo = this.lambdaQuery()
@@ -130,25 +134,25 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
                 .one();
 
         if (expressInfo == null) {
-            throw new RuntimeException("单号或手机号不匹配，无法核销");
+            throw BusinessException.badRequest("单号或手机号不匹配，无法核销");
         }
         if (operatorRole == UserRole.USER) {
             boolean selfReceiver = normalizedPickupPhone.equals(safeTrim(expressInfo.getReceiverPhone()));
             boolean isBound = isExpressBoundToUser(expressInfo.getId(), operatorUserId);
             if (!selfReceiver && !isBound) {
-                throw new RuntimeException("该快递不属于当前用户，无法出库");
+                throw BusinessException.badRequest("该快递不属于当前用户，无法出库");
             }
         }
         if (expressInfo.getStatus() == null || expressInfo.getStatus() != 1) {
-            throw new RuntimeException("当前快递状态不允许取件");
+            throw BusinessException.badRequest("当前快递状态不允许取件");
         }
         if (expressInfo.getShelfCode() == null || expressInfo.getShelfLayer() == null) {
-            throw new RuntimeException("快递未关联货架，无法释放库存");
+            throw BusinessException.badRequest("快递未关联货架，无法释放库存");
         }
 
         ShelfInfo shelf = shelfInfoService.getByCodeAndLayer(expressInfo.getShelfCode(), expressInfo.getShelfLayer());
         if (shelf == null) {
-            throw new RuntimeException("关联货架不存在，无法释放库存");
+            throw BusinessException.badRequest("关联货架不存在，无法释放库存");
         }
 
         expressInfo.setStatus((byte) 2);
@@ -156,13 +160,13 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
         expressInfo.setUpdateTime(LocalDateTime.now());
         boolean expressUpdated = this.updateById(expressInfo);
         if (!expressUpdated) {
-            throw new RuntimeException("更新快递状态失败");
+            throw BusinessException.badRequest("更新快递状态失败");
         }
 
         // 出库成功后释放货架容量。
         boolean shelfUpdated = shelfInfoService.updateUsage(shelf.getId(), -1);
         if (!shelfUpdated) {
-            throw new RuntimeException("释放货架空间失败");
+            throw BusinessException.badRequest("释放货架空间失败");
         }
 
         return true;
@@ -172,17 +176,17 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
     @Transactional(rollbackFor = Exception.class)
     public ExpressInfo updateExpress(ExpressInfo expressInfo) {
         if (expressInfo == null || expressInfo.getId() == null) {
-            throw new RuntimeException("快递ID不能为空");
+            throw BusinessException.badRequest("快递ID不能为空");
         }
         ExpressInfo existing = this.getById(expressInfo.getId());
         if (existing == null) {
-            throw new RuntimeException("快递不存在");
+            throw BusinessException.badRequest("快递不存在");
         }
 
         String normalizedTrackingNumber = safeTrim(expressInfo.getTrackingNumber());
         if (normalizedTrackingNumber != null) {
             if (normalizedTrackingNumber.isBlank()) {
-                throw new RuntimeException("快递单号不能为空");
+                throw BusinessException.badRequest("快递单号不能为空");
             }
             if (!normalizedTrackingNumber.equals(existing.getTrackingNumber())) {
                 long count = this.lambdaQuery()
@@ -190,7 +194,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
                         .ne(ExpressInfo::getId, expressInfo.getId())
                         .count();
                 if (count > 0) {
-                    throw new RuntimeException("该快递单号已存在");
+                    throw BusinessException.badRequest("该快递单号已存在");
                 }
             }
             expressInfo.setTrackingNumber(normalizedTrackingNumber);
@@ -226,7 +230,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
         expressInfo.setUpdateTime(LocalDateTime.now());
         boolean updated = this.updateById(expressInfo);
         if (!updated) {
-            throw new RuntimeException("更新快递失败");
+            throw BusinessException.badRequest("更新快递失败");
         }
         return this.getById(expressInfo.getId());
     }
@@ -235,11 +239,11 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteExpress(Long id) {
         if (id == null) {
-            throw new RuntimeException("快递ID不能为空");
+            throw BusinessException.badRequest("快递ID不能为空");
         }
         ExpressInfo existing = this.getById(id);
         if (existing == null) {
-            throw new RuntimeException("快递不存在");
+            throw BusinessException.badRequest("快递不存在");
         }
 
         // 待取件状态删除时先释放货架容量。
@@ -247,17 +251,17 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
                 && existing.getShelfCode() != null && existing.getShelfLayer() != null) {
             ShelfInfo shelf = shelfInfoService.getByCodeAndLayer(existing.getShelfCode(), existing.getShelfLayer());
             if (shelf == null) {
-                throw new RuntimeException("关联货架不存在，无法释放库存");
+                throw BusinessException.badRequest("关联货架不存在，无法释放库存");
             }
             boolean shelfUpdated = shelfInfoService.updateUsage(shelf.getId(), -1);
             if (!shelfUpdated) {
-                throw new RuntimeException("释放货架空间失败");
+                throw BusinessException.badRequest("释放货架空间失败");
             }
         }
 
         boolean removed = this.removeById(id);
         if (!removed) {
-            throw new RuntimeException("删除快递失败");
+            throw BusinessException.badRequest("删除快递失败");
         }
         return true;
     }
@@ -266,19 +270,19 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
     @Transactional(rollbackFor = Exception.class)
     public ExpressInfo relocateShelf(Long id, Integer shelfCode, Integer shelfLayer, Integer sizeType) {
         if (id == null) {
-            throw new RuntimeException("快递ID不能为空");
+            throw BusinessException.badRequest("快递ID不能为空");
         }
         if (sizeType == null) {
-            throw new RuntimeException("快递规格不能为空");
+            throw BusinessException.badRequest("快递规格不能为空");
         }
 
         ExpressInfo expressInfo = this.getById(id);
         if (expressInfo == null) {
-            throw new RuntimeException("快递不存在");
+            throw BusinessException.badRequest("快递不存在");
         }
         // 仅允许待取件状态换柜。
         if (expressInfo.getStatus() == null || expressInfo.getStatus() != 1) {
-            throw new RuntimeException("当前快递状态不允许换柜");
+            throw BusinessException.badRequest("当前快递状态不允许换柜");
         }
 
         ShelfInfo targetShelf;
@@ -286,16 +290,16 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
         if (shelfCode == null || shelfLayer == null) {
             targetShelf = shelfInfoService.getRecommendShelf(sizeType);
             if (targetShelf == null) {
-                throw new RuntimeException("没有可用货架");
+                throw BusinessException.badRequest("没有可用货架");
             }
         } else {
             targetShelf = shelfInfoService.getByCodeAndLayer(shelfCode, shelfLayer);
         }
         if (targetShelf == null) {
-            throw new RuntimeException("目标货架不存在");
+            throw BusinessException.badRequest("目标货架不存在");
         }
         if (targetShelf.getStatus() == null || targetShelf.getStatus() != 1) {
-            throw new RuntimeException("目标货架不可用");
+            throw BusinessException.badRequest("目标货架不可用");
         }
 
         // 释放原货架占用（如果存在）。
@@ -304,7 +308,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
             if (currentShelf != null) {
                 boolean currentUpdated = shelfInfoService.updateUsage(currentShelf.getId(), -1);
                 if (!currentUpdated) {
-                    throw new RuntimeException("释放原货架空间失败");
+                    throw BusinessException.badRequest("释放原货架空间失败");
                 }
             }
         }
@@ -312,7 +316,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
         // 更新快递记录前先占用目标货架。
         boolean targetUpdated = shelfInfoService.updateUsage(targetShelf.getId(), 1);
         if (!targetUpdated) {
-            throw new RuntimeException("占用目标货架空间失败");
+            throw BusinessException.badRequest("占用目标货架空间失败");
         }
 
         expressInfo.setSizeType(sizeType.byteValue());
@@ -323,7 +327,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
 
         boolean updated = this.updateById(expressInfo);
         if (!updated) {
-            throw new RuntimeException("换柜更新失败");
+            throw BusinessException.badRequest("换柜更新失败");
         }
         return this.getById(id);
     }
@@ -336,12 +340,139 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
                                           Integer shelfLayer,
                                           Integer sizeType,
                                           Boolean overdueOnly) {
+        return buildAdminListQuery(
+                trackingNumber, receiverPhone, status, shelfCode, shelfLayer, sizeType, overdueOnly).list();
+    }
+
+    @Override
+    public PageResponse<ExpressInfo> pageByFilter(String trackingNumber,
+                                                  String receiverPhone,
+                                                  Integer status,
+                                                  Integer shelfCode,
+                                                  Integer shelfLayer,
+                                                  Integer sizeType,
+                                                  Boolean overdueOnly,
+                                                  PageRequest pageRequest) {
+        long pageNo = pageRequest == null ? 1L : pageRequest.safePage();
+        long pageSize = pageRequest == null ? 15L : pageRequest.safePageSize();
+        Page<ExpressInfo> page = new Page<>(pageNo, pageSize);
+        buildAdminListQuery(trackingNumber, receiverPhone, status, shelfCode, shelfLayer, sizeType, overdueOnly)
+                .page(page);
+        return PageResponse.of(page.getRecords(), page.getTotal(), pageNo, pageSize);
+    }
+
+    @Override
+    public List<ExpressInfo> listForUser(Long userId,
+                                         String userPhone,
+                                         String trackingNumber,
+                                         Integer status,
+                                         Boolean overdueOnly) {
+        return buildUserListQuery(userId, userPhone, trackingNumber, status, overdueOnly).list();
+    }
+
+    @Override
+    public PageResponse<ExpressInfo> pageForUser(Long userId,
+                                                 String userPhone,
+                                                 String trackingNumber,
+                                                 Integer status,
+                                                 Boolean overdueOnly,
+                                                 PageRequest pageRequest) {
+        long pageNo = pageRequest == null ? 1L : pageRequest.safePage();
+        long pageSize = pageRequest == null ? 15L : pageRequest.safePageSize();
+        Page<ExpressInfo> page = new Page<>(pageNo, pageSize);
+        buildUserListQuery(userId, userPhone, trackingNumber, status, overdueOnly).page(page);
+        return PageResponse.of(page.getRecords(), page.getTotal(), pageNo, pageSize);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ExpressInfo claimForUser(Long userId, String userPhone, String trackingNumber, String receiverPhone) {
+        if (userId == null) {
+            throw BusinessException.badRequest("用户ID不能为空");
+        }
+        String normalizedUserPhone = safeTrim(userPhone);
+        String normalizedTrackingNumber = safeTrim(trackingNumber);
+        String normalizedReceiverPhone = safeTrim(receiverPhone);
+        if (normalizedUserPhone == null || normalizedUserPhone.isBlank()) {
+            throw BusinessException.badRequest("当前用户未绑定手机号");
+        }
+        if (normalizedTrackingNumber == null || normalizedTrackingNumber.isBlank()) {
+            throw BusinessException.badRequest("快递单号不能为空");
+        }
+        if (normalizedReceiverPhone == null || normalizedReceiverPhone.isBlank()) {
+            throw BusinessException.badRequest("收件人手机号不能为空");
+        }
+
+        ExpressInfo expressInfo = this.lambdaQuery()
+                .eq(ExpressInfo::getTrackingNumber, normalizedTrackingNumber)
+                .one();
+        if (expressInfo == null) {
+            throw BusinessException.badRequest("快递不存在");
+        }
+        if (expressInfo.getStatus() == null || (expressInfo.getStatus() != 0 && expressInfo.getStatus() != 1)) {
+            throw BusinessException.badRequest("当前快递状态不支持绑定");
+        }
+        if (!normalizedReceiverPhone.equals(safeTrim(expressInfo.getReceiverPhone()))) {
+            throw BusinessException.badRequest("单号与收件人手机号不匹配");
+        }
+        if (normalizedUserPhone.equals(safeTrim(expressInfo.getReceiverPhone()))) {
+            return expressInfo;
+        }
+
+        ExpressUserBinding existingBinding = expressUserBindingMapper.selectOne(
+                new QueryWrapper<ExpressUserBinding>()
+                        .eq("express_id", expressInfo.getId())
+                        .eq("user_id", userId)
+                        .eq("is_deleted", 0)
+        );
+        if (existingBinding != null) {
+            return expressInfo;
+        }
+
+        ExpressUserBinding binding = new ExpressUserBinding();
+        binding.setExpressId(expressInfo.getId());
+        binding.setUserId(userId);
+        LocalDateTime now = LocalDateTime.now();
+        binding.setCreateTime(now);
+        binding.setUpdateTime(now);
+        binding.setIsDeleted((byte) 0);
+        int inserted = expressUserBindingMapper.insert(binding);
+        if (inserted <= 0) {
+            throw BusinessException.badRequest("添加包裹失败");
+        }
+        return expressInfo;
+    }
+
+    private boolean isExpressBoundToUser(Long expressId, Long userId) {
+        if (expressId == null || userId == null) {
+            return false;
+        }
+        ExpressUserBinding binding = expressUserBindingMapper.selectOne(
+                new QueryWrapper<ExpressUserBinding>()
+                        .eq("express_id", expressId)
+                        .eq("user_id", userId)
+                        .eq("is_deleted", 0)
+        );
+        return binding != null;
+    }
+
+    private String safeTrim(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private LambdaQueryChainWrapper<ExpressInfo> buildAdminListQuery(String trackingNumber,
+                                                                     String receiverPhone,
+                                                                     Integer status,
+                                                                     Integer shelfCode,
+                                                                     Integer shelfLayer,
+                                                                     Integer sizeType,
+                                                                     Boolean overdueOnly) {
         String normalizedTrackingNumber = safeTrim(trackingNumber);
         String normalizedReceiverPhone = safeTrim(receiverPhone);
         boolean queryOverdueOnly = Boolean.TRUE.equals(overdueOnly);
         LocalDateTime overdueThreshold = LocalDateTime.now().minus(48, ChronoUnit.HOURS);
-        // 根据筛选条件动态构造查询。
-        var query = this.lambdaQuery()
+
+        LambdaQueryChainWrapper<ExpressInfo> query = this.lambdaQuery()
                 .eq(status != null, ExpressInfo::getStatus, status)
                 .eq(shelfCode != null, ExpressInfo::getShelfCode, shelfCode)
                 .eq(shelfLayer != null, ExpressInfo::getShelfLayer, shelfLayer)
@@ -360,21 +491,20 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
             query.orderByDesc(ExpressInfo::getUpdateTime)
                     .orderByDesc(ExpressInfo::getCreateTime);
         }
-        return query.list();
+        return query;
     }
 
-    @Override
-    public List<ExpressInfo> listForUser(Long userId,
-                                         String userPhone,
-                                         String trackingNumber,
-                                         Integer status,
-                                         Boolean overdueOnly) {
+    private LambdaQueryChainWrapper<ExpressInfo> buildUserListQuery(Long userId,
+                                                                    String userPhone,
+                                                                    String trackingNumber,
+                                                                    Integer status,
+                                                                    Boolean overdueOnly) {
         if (userId == null) {
-            throw new RuntimeException("用户ID不能为空");
+            throw BusinessException.badRequest("用户ID不能为空");
         }
         String normalizedUserPhone = safeTrim(userPhone);
         if (normalizedUserPhone == null || normalizedUserPhone.isBlank()) {
-            throw new RuntimeException("当前用户未绑定手机号");
+            throw BusinessException.badRequest("当前用户未绑定手机号");
         }
 
         String normalizedTrackingNumber = safeTrim(trackingNumber);
@@ -382,7 +512,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
         LocalDateTime overdueThreshold = LocalDateTime.now().minus(48, ChronoUnit.HOURS);
 
         List<ExpressUserBinding> bindings = expressUserBindingMapper.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<ExpressUserBinding>()
+                new QueryWrapper<ExpressUserBinding>()
                         .eq("user_id", userId)
                         .eq("is_deleted", 0)
         );
@@ -393,7 +523,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
             }
         }
 
-        var query = this.lambdaQuery()
+        LambdaQueryChainWrapper<ExpressInfo> query = this.lambdaQuery()
                 .eq(status != null, ExpressInfo::getStatus, status)
                 .like(normalizedTrackingNumber != null && !normalizedTrackingNumber.isBlank(),
                         ExpressInfo::getTrackingNumber, normalizedTrackingNumber);
@@ -416,105 +546,16 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
             query.orderByDesc(ExpressInfo::getUpdateTime)
                     .orderByDesc(ExpressInfo::getCreateTime);
         }
-
-        List<ExpressInfo> list = query.list();
-        if (bindingIds.isEmpty()) {
-            return list;
-        }
-        // 去重兜底：同一快递可能同时满足“本人手机号 + 已绑定”。
-        Set<Long> seen = new HashSet<>();
-        List<ExpressInfo> deduped = new ArrayList<>();
-        for (ExpressInfo item : list) {
-            if (item.getId() == null || seen.add(item.getId())) {
-                deduped.add(item);
-            }
-        }
-        return deduped;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public ExpressInfo claimForUser(Long userId, String userPhone, String trackingNumber, String receiverPhone) {
-        if (userId == null) {
-            throw new RuntimeException("用户ID不能为空");
-        }
-        String normalizedUserPhone = safeTrim(userPhone);
-        String normalizedTrackingNumber = safeTrim(trackingNumber);
-        String normalizedReceiverPhone = safeTrim(receiverPhone);
-        if (normalizedUserPhone == null || normalizedUserPhone.isBlank()) {
-            throw new RuntimeException("当前用户未绑定手机号");
-        }
-        if (normalizedTrackingNumber == null || normalizedTrackingNumber.isBlank()) {
-            throw new RuntimeException("快递单号不能为空");
-        }
-        if (normalizedReceiverPhone == null || normalizedReceiverPhone.isBlank()) {
-            throw new RuntimeException("收件人手机号不能为空");
-        }
-
-        ExpressInfo expressInfo = this.lambdaQuery()
-                .eq(ExpressInfo::getTrackingNumber, normalizedTrackingNumber)
-                .one();
-        if (expressInfo == null) {
-            throw new RuntimeException("快递不存在");
-        }
-        if (expressInfo.getStatus() == null || (expressInfo.getStatus() != 0 && expressInfo.getStatus() != 1)) {
-            throw new RuntimeException("当前快递状态不支持绑定");
-        }
-        if (!normalizedReceiverPhone.equals(safeTrim(expressInfo.getReceiverPhone()))) {
-            throw new RuntimeException("单号与收件人手机号不匹配");
-        }
-        if (normalizedUserPhone.equals(safeTrim(expressInfo.getReceiverPhone()))) {
-            return expressInfo;
-        }
-
-        ExpressUserBinding existingBinding = expressUserBindingMapper.selectOne(
-                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<ExpressUserBinding>()
-                        .eq("express_id", expressInfo.getId())
-                        .eq("user_id", userId)
-                        .eq("is_deleted", 0)
-        );
-        if (existingBinding != null) {
-            return expressInfo;
-        }
-
-        ExpressUserBinding binding = new ExpressUserBinding();
-        binding.setExpressId(expressInfo.getId());
-        binding.setUserId(userId);
-        LocalDateTime now = LocalDateTime.now();
-        binding.setCreateTime(now);
-        binding.setUpdateTime(now);
-        binding.setIsDeleted((byte) 0);
-        int inserted = expressUserBindingMapper.insert(binding);
-        if (inserted <= 0) {
-            throw new RuntimeException("添加包裹失败");
-        }
-        return expressInfo;
-    }
-
-    private boolean isExpressBoundToUser(Long expressId, Long userId) {
-        if (expressId == null || userId == null) {
-            return false;
-        }
-        ExpressUserBinding binding = expressUserBindingMapper.selectOne(
-                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<ExpressUserBinding>()
-                        .eq("express_id", expressId)
-                        .eq("user_id", userId)
-                        .eq("is_deleted", 0)
-        );
-        return binding != null;
-    }
-
-    private String safeTrim(String value) {
-        return value == null ? null : value.trim();
+        return query;
     }
 
     private String generatePickupCode(Integer shelfCode, Integer shelfLayer) {
         // 生成当前货架+层的唯一取件码。
         if (shelfCode == null) {
-            throw new RuntimeException("货架编号不能为空");
+            throw BusinessException.badRequest("货架编号不能为空");
         }
         if (shelfLayer == null) {
-            throw new RuntimeException("货架层不能为空");
+            throw BusinessException.badRequest("货架层不能为空");
         }
         for (int i = 0; i < 10; i++) {
             String random4 = String.format("%04d", ThreadLocalRandom.current().nextInt(0, 10_000));
@@ -527,6 +568,6 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
                 return code;
             }
         }
-        throw new RuntimeException("生成取件码失败，请重试");
+        throw BusinessException.badRequest("生成取件码失败，请重试");
     }
 }

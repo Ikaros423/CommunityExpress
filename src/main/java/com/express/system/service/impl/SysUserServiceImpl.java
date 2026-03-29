@@ -1,5 +1,9 @@
 package com.express.system.service.impl;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.express.system.common.exception.BusinessException;
+import com.express.system.common.page.PageRequest;
+import com.express.system.common.page.PageResponse;
 import com.express.system.entity.SysUser;
 import com.express.system.entity.enums.UserRole;
 import com.express.system.mapper.SysUserMapper;
@@ -30,15 +34,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public List<SysUser> listByFilter(String username, UserRole role, Integer status) {
-        String normalizedUsername = safeTrim(username);
-        // 按用户名/角色/状态过滤，并对返回结果做密码脱敏。
-        List<SysUser> list = this.lambdaQuery()
-                .like(normalizedUsername != null && !normalizedUsername.isBlank(), SysUser::getUsername, normalizedUsername)
-                .eq(role != null, SysUser::getRole, role)
-                .eq(status != null, SysUser::getStatus, status)
-                .orderByDesc(SysUser::getUpdateTime)
-                .orderByDesc(SysUser::getCreateTime)
-                .list();
+        List<SysUser> list = buildListQuery(username, role, status).list();
         for (SysUser user : list) {
             user.setPassword(null);
         }
@@ -46,13 +42,38 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
+    public PageResponse<SysUser> pageByFilter(String username, UserRole role, Integer status, PageRequest pageRequest) {
+        long pageNo = pageRequest == null ? 1L : pageRequest.safePage();
+        long pageSize = pageRequest == null ? 15L : pageRequest.safePageSize();
+        Page<SysUser> page = new Page<>(pageNo, pageSize);
+        buildListQuery(username, role, status).page(page);
+        for (SysUser user : page.getRecords()) {
+            user.setPassword(null);
+        }
+        return PageResponse.of(page.getRecords(), page.getTotal(), pageNo, pageSize);
+    }
+
+    private com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper<SysUser> buildListQuery(String username,
+                                                                                                                UserRole role,
+                                                                                                                Integer status) {
+        String normalizedUsername = safeTrim(username);
+        // 按用户名/角色/状态过滤，并对返回结果做密码脱敏。
+        return this.lambdaQuery()
+                .like(normalizedUsername != null && !normalizedUsername.isBlank(), SysUser::getUsername, normalizedUsername)
+                .eq(role != null, SysUser::getRole, role)
+                .eq(status != null, SysUser::getStatus, status)
+                .orderByDesc(SysUser::getUpdateTime)
+                .orderByDesc(SysUser::getCreateTime);
+    }
+
+    @Override
     public SysUser getDetail(Long id) {
         if (id == null) {
-            throw new RuntimeException("用户ID不能为空");
+            throw BusinessException.badRequest("用户ID不能为空");
         }
         SysUser user = this.getById(id);
         if (user == null) {
-            throw new RuntimeException("用户不存在");
+            throw BusinessException.badRequest("用户不存在");
         }
         user.setPassword(null);
         return user;
@@ -61,18 +82,18 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Override
     public SysUser createUser(SysUser user) {
         if (user == null) {
-            throw new RuntimeException("用户信息不能为空");
+            throw BusinessException.badRequest("用户信息不能为空");
         }
         String username = safeTrim(user.getUsername());
         String password = safeTrim(user.getPassword());
         if (username == null || username.isBlank()) {
-            throw new RuntimeException("用户名不能为空");
+            throw BusinessException.badRequest("用户名不能为空");
         }
         if (password == null || password.isBlank()) {
-            throw new RuntimeException("密码不能为空");
+            throw BusinessException.badRequest("密码不能为空");
         }
         if (user.getRole() == null) {
-            throw new RuntimeException("角色不能为空");
+            throw BusinessException.badRequest("角色不能为空");
         }
 
         checkUsernameUnique(username, null);
@@ -91,7 +112,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         boolean saved = this.save(user);
         if (!saved) {
-            throw new RuntimeException("新增用户失败");
+            throw BusinessException.badRequest("新增用户失败");
         }
         user.setPassword(null);
         return user;
@@ -100,11 +121,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Override
     public SysUser updateUser(SysUser user) {
         if (user == null || user.getId() == null) {
-            throw new RuntimeException("用户ID不能为空");
+            throw BusinessException.badRequest("用户ID不能为空");
         }
         SysUser existing = this.getById(user.getId());
         if (existing == null) {
-            throw new RuntimeException("用户不存在");
+            throw BusinessException.badRequest("用户不存在");
         }
 
         // 仅更新传入字段，避免空值覆盖。
@@ -119,7 +140,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         String password = safeTrim(user.getPassword());
         if (password != null && password.isBlank()) {
-            throw new RuntimeException("密码不能为空");
+            throw BusinessException.badRequest("密码不能为空");
         }
         if (password != null && !password.isBlank()) {
             updateEntity.setPassword(passwordEncoder.encode(password));
@@ -143,7 +164,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         updateEntity.setUpdateTime(LocalDateTime.now());
         boolean updated = this.updateById(updateEntity);
         if (!updated) {
-            throw new RuntimeException("更新用户失败");
+            throw BusinessException.badRequest("更新用户失败");
         }
         SysUser updatedUser = this.getById(user.getId());
         if (updatedUser != null) {
@@ -155,15 +176,15 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Override
     public boolean deleteUser(Long id) {
         if (id == null) {
-            throw new RuntimeException("用户ID不能为空");
+            throw BusinessException.badRequest("用户ID不能为空");
         }
         SysUser existing = this.getById(id);
         if (existing == null) {
-            throw new RuntimeException("用户不存在");
+            throw BusinessException.badRequest("用户不存在");
         }
         boolean removed = this.removeById(id);
         if (!removed) {
-            throw new RuntimeException("删除用户失败");
+            throw BusinessException.badRequest("删除用户失败");
         }
         return true;
     }
@@ -173,10 +194,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         String normalizedUsername = safeTrim(username);
         String normalizedPassword = safeTrim(password);
         if (normalizedUsername == null || normalizedUsername.isBlank()) {
-            throw new RuntimeException("用户名不能为空");
+            throw BusinessException.badRequest("用户名不能为空");
         }
         if (normalizedPassword == null || normalizedPassword.isBlank()) {
-            throw new RuntimeException("密码不能为空");
+            throw BusinessException.badRequest("密码不能为空");
         }
         checkUsernameUnique(normalizedUsername, null);
 
@@ -193,7 +214,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         boolean saved = this.save(user);
         if (!saved) {
-            throw new RuntimeException("注册失败");
+            throw BusinessException.badRequest("注册失败");
         }
         user.setPassword(null);
         return user;
@@ -204,10 +225,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         String normalizedAccount = safeTrim(account);
         String normalizedPassword = safeTrim(password);
         if (normalizedAccount == null || normalizedAccount.isBlank()) {
-            throw new RuntimeException("账号不能为空");
+            throw BusinessException.badRequest("账号不能为空");
         }
         if (normalizedPassword == null || normalizedPassword.isBlank()) {
-            throw new RuntimeException("密码不能为空");
+            throw BusinessException.badRequest("密码不能为空");
         }
 
         // 通过用户名（手机号）登录。
@@ -215,13 +236,13 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 .eq(SysUser::getUsername, normalizedAccount)
                 .one();
         if (user == null) {
-            throw new RuntimeException("账号或密码错误");
+            throw BusinessException.badRequest("账号或密码错误");
         }
         if (user.getStatus() != null && user.getStatus() == 0) {
-            throw new RuntimeException("账号已被禁用");
+            throw BusinessException.badRequest("账号已被禁用");
         }
         if (!passwordEncoder.matches(normalizedPassword, user.getPassword())) {
-            throw new RuntimeException("账号或密码错误");
+            throw BusinessException.badRequest("账号或密码错误");
         }
 
         user.setPassword(null);
@@ -234,7 +255,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 .ne(excludeId != null, SysUser::getId, excludeId)
                 .count();
         if (count > 0) {
-            throw new RuntimeException("用户名已存在");
+            throw BusinessException.badRequest("用户名已存在");
         }
     }
 

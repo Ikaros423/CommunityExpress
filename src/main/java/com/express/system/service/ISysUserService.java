@@ -1,5 +1,7 @@
 package com.express.system.service;
 
+import com.express.system.common.page.PageRequest;
+import com.express.system.common.page.PageResponse;
 import com.express.system.entity.SysUser;
 import com.baomidou.mybatisplus.extension.service.IService;
 
@@ -16,6 +18,11 @@ public interface ISysUserService extends IService<SysUser> {
     java.util.List<SysUser> listByFilter(String username,
                                          com.express.system.entity.enums.UserRole role,
                                          Integer status);
+
+    PageResponse<SysUser> pageByFilter(String username,
+                                       com.express.system.entity.enums.UserRole role,
+                                       Integer status,
+                                       PageRequest pageRequest);
 
     SysUser getDetail(Long id);
 

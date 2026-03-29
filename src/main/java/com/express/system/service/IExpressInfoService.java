@@ -3,6 +3,8 @@ package com.express.system.service;
 import com.express.system.entity.ExpressInfo;
 import com.express.system.entity.enums.UserRole;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.express.system.common.page.PageRequest;
+import com.express.system.common.page.PageResponse;
 import com.express.system.controller.ExpressInfoController.ExpressCheckinRequest;
 
 /**
@@ -73,11 +75,27 @@ public interface IExpressInfoService extends IService<ExpressInfo> {
                                              Integer sizeType,
                                              Boolean overdueOnly);
 
+    PageResponse<ExpressInfo> pageByFilter(String trackingNumber,
+                                           String receiverPhone,
+                                           Integer status,
+                                           Integer shelfCode,
+                                           Integer shelfLayer,
+                                           Integer sizeType,
+                                           Boolean overdueOnly,
+                                           PageRequest pageRequest);
+
     java.util.List<ExpressInfo> listForUser(Long userId,
                                             String userPhone,
                                             String trackingNumber,
                                             Integer status,
                                             Boolean overdueOnly);
+
+    PageResponse<ExpressInfo> pageForUser(Long userId,
+                                          String userPhone,
+                                          String trackingNumber,
+                                          Integer status,
+                                          Boolean overdueOnly,
+                                          PageRequest pageRequest);
 
     ExpressInfo claimForUser(Long userId, String userPhone, String trackingNumber, String receiverPhone);
 
