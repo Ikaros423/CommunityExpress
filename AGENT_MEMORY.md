@@ -155,10 +155,12 @@ Quick reference for project structure, API conventions, database schema, and ope
 - 编辑弹窗：快递/货架/用户列表均提供编辑更新弹窗（NModal + NForm），提交后刷新列表并保留筛选条件。
 - 表单校验：手机号、密码长度与后端规则一致；必填项前端拦截（手机号正则 `^1\\d{10}$`，密码 6-20）。
 - 请求约定：统一 `ApiResponse`，`/system` 代理到后端；API 已对接到可直接演示。
-- 注意：后端列表接口已统一分页，前端读取列表需使用 `data.list`，并处理 `data.total/page/pageSize`。
+- 分页适配：新增 `web/src/utils/page.js` 与 `web/src/composables/usePagedTable.js`，统一将列表响应标准化为 `list/total/page/pageSize`，兼容数组与 `PageResponse`。
+- 列表页改造：`ExpressManage/ShelfManage/UserManage/SendOrderManage` 均已接入后端分页与远程翻页，筛选时自动回到第一页，分页切换保持筛选条件。
 - 交互优化：列表请求带 loading；错误提示优先展示后端 message。
 - 用户端出库入口：快递查询页顶部提供单号出库输入框与按钮，仅 USER 可见。
-- 看板图表：ECharts 按需引入（`echarts/core`），并修复刷新后角色恢复时图表不显示问题（监听角色变化后加载）。
+- 看板图表：ECharts 按需引入（`echarts/core`）；趋势图刷新后会自动校验并重建实例（DOM 变更时 dispose + re-init），修复“点击刷新后不显示”问题。
+- 安全交互：删除/取消类高风险动作已增加二次确认（快递删除、货架删除、用户删除、寄件取消）。
 
 ## Business Logic Notes
 ### Auth & exception refactor (2026-03-29)
@@ -238,7 +240,7 @@ Quick reference for project structure, API conventions, database schema, and ope
 - `id` (PK, auto)
 - `tracking_number`
 - `logistics_company`
-- `size_type` (0 standard, 1 large, 2 fragile, 3 cold chain)
+- `size_type` (0 standard, 1 large, 2 cold chain, 3 fragile)
 - `receiver_name`
 - `receiver_phone`
 - `pickup_code` (generated: `shelfCode-shelfLayer-XXXX`)
