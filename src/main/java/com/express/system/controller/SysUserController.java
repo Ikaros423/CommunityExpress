@@ -2,11 +2,13 @@ package com.express.system.controller;
 
 import com.express.system.common.ApiResponse;
 import com.express.system.entity.SysUser;
+import com.express.system.entity.enums.SmsBizType;
 import com.express.system.entity.enums.UserRole;
 import com.express.system.security.JwtUser;
 import com.express.system.security.JwtUtil;
 import com.express.system.service.ISysUserService;
 import com.express.system.service.PasswordResetService;
+import com.express.system.service.SmsCodeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -28,8 +30,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.List;
@@ -57,7 +57,8 @@ public class SysUserController {
     @Autowired
     private PasswordResetService passwordResetService;
 
-    private static final Logger log = LoggerFactory.getLogger(SysUserController.class);
+    @Autowired
+    private SmsCodeService smsCodeService;
 
     @Operation(summary = "用户列表查询")
     @GetMapping
@@ -138,8 +139,17 @@ public class SysUserController {
     @Operation(summary = "用户注册")
     @PostMapping("/register")
     public ApiResponse<SysUser> register(@Valid @RequestBody SysUserRegisterRequest request) {
+        smsCodeService.verifyCode(request.getUsername(), SmsBizType.REGISTER, request.getCode());
         return ApiResponse.success("注册成功", sysUserService.registerUser(
                 request.getUsername(), request.getPassword(), request.getNickname()));
+    }
+
+    @Operation(summary = "发送短信验证码(统一)")
+    @PostMapping("/sms-code/request")
+    public ApiResponse<Boolean> requestSmsCode(
+            @Valid @RequestBody SmsCodeRequest request) {
+        smsCodeService.requestCode(request.getPhone(), request.getBizType());
+        return ApiResponse.success("验证码已发送", true);
     }
 
     @Operation(summary = "用户登录")
@@ -165,8 +175,7 @@ public class SysUserController {
     @PostMapping("/password-reset/request")
     public ApiResponse<Boolean> requestPasswordReset(
             @Valid @RequestBody PasswordResetRequest request) {
-        String code = passwordResetService.requestCode(request.getPhone());
-        log.info("短信验证码(phone={}): {}", request.getPhone(), code);
+        passwordResetService.requestCode(request.getPhone());
         return ApiResponse.success("验证码已发送", true);
     }
 
@@ -322,6 +331,9 @@ public class SysUserController {
         @NotBlank(message = "密码不能为空")
         @Size(min = 6, max = 64, message = "密码长度需在6-64之间")
         private String password;
+        @Schema(description = "短信验证码")
+        @NotBlank(message = "验证码不能为空")
+        private String code;
         @Schema(description = "昵称")
         private String nickname;
 
@@ -347,6 +359,42 @@ public class SysUserController {
 
         public void setNickname(String nickname) {
             this.nickname = nickname;
+        }
+
+        public String getCode() {
+            return code;
+        }
+
+        public void setCode(String code) {
+            this.code = code;
+        }
+    }
+
+    @Schema(description = "统一短信验证码请求")
+    public static class SmsCodeRequest {
+        @Schema(description = "手机号")
+        @NotBlank(message = "手机号不能为空")
+        @Pattern(regexp = "^1\\d{10}$", message = "手机号格式不正确")
+        private String phone;
+
+        @Schema(description = "业务类型")
+        @NotNull(message = "业务类型不能为空")
+        private SmsBizType bizType;
+
+        public String getPhone() {
+            return phone;
+        }
+
+        public void setPhone(String phone) {
+            this.phone = phone;
+        }
+
+        public SmsBizType getBizType() {
+            return bizType;
+        }
+
+        public void setBizType(SmsBizType bizType) {
+            this.bizType = bizType;
         }
     }
 

@@ -29,7 +29,7 @@ import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import { api } from '../api';
-import { PASSWORD_RULE, PHONE_RULE } from '../constants/validation';
+import { PASSWORD_RULE, PHONE_REGEX, PHONE_RULE } from '../constants/validation';
 
 const router = useRouter();
 const message = useMessage();
@@ -49,13 +49,18 @@ const rules = {
 
 const handleRequest = async () => {
   try {
-    await formRef.value?.validate(['phone']);
-    await api.requestResetCode({ phone: form.phone });
+    const phone = form.phone.trim();
+    if (!PHONE_REGEX.test(phone)) {
+      message.warning('请先输入正确的手机号');
+      return;
+    }
+    await api.requestSmsCode({ phone, bizType: 'PASSWORD_RESET' });
     message.success('验证码已发送（控制台日志查看）');
   } catch (err) {
     if (err?.errors) {
       return;
     }
+    message.error(err?.message || '验证码发送失败');
   }
 };
 

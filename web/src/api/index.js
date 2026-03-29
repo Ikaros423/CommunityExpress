@@ -4,6 +4,7 @@ export const api = {
   login: (payload) => http.post('/system/users/login', payload),
   register: (payload) => http.post('/system/users/register', payload),
   refresh: () => http.post('/system/users/refresh'),
+  requestSmsCode: (payload) => http.post('/system/users/sms-code/request', payload),
   requestResetCode: (payload) => http.post('/system/users/password-reset/request', payload),
   confirmReset: (payload) => http.post('/system/users/password-reset/confirm', payload),
 

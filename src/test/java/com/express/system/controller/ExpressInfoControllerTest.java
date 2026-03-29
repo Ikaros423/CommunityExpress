@@ -59,7 +59,7 @@ class ExpressInfoControllerTest {
 
         // 当传入期望参数时，模拟 service 返回一条记录。
         when(expressInfoService.listByFilter(eq("SF100000001"), eq("13900000003"),
-                eq(null), eq(null), eq(null), eq(null)))
+                eq(null), eq(null), eq(null), eq(null), eq(false)))
                 .thenReturn(List.of(new ExpressInfo()));
 
         try {
@@ -83,7 +83,7 @@ class ExpressInfoControllerTest {
         SecurityContextHolder.getContext().setAuthentication(auth);
 
         when(expressInfoService.listByFilter(eq("SF100000001"), eq("13900000001"),
-                eq(1), eq(101), eq(1), eq(0)))
+                eq(1), eq(101), eq(1), eq(0), eq(null)))
                 .thenReturn(List.of(new ExpressInfo()));
 
         try {

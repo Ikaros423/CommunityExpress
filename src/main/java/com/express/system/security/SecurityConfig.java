@@ -34,6 +34,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/system/users/login",
                                 "/system/users/register",
+                                "/system/users/sms-code/request",
                                 "/system/users/password-reset/request",
                                 "/system/users/password-reset/confirm"
                         ).permitAll()

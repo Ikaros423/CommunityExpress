@@ -1,10 +1,12 @@
 package com.express.system.controller;
 
 import com.express.system.entity.SysUser;
+import com.express.system.entity.enums.SmsBizType;
 import com.express.system.entity.enums.UserRole;
 import com.express.system.security.JwtUtil;
 import com.express.system.service.ISysUserService;
 import com.express.system.service.PasswordResetService;
+import com.express.system.service.SmsCodeService;
 import com.express.system.common.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +60,9 @@ class SysUserControllerTest {
     @MockBean
     private PasswordResetService passwordResetService;
 
+    @MockBean
+    private SmsCodeService smsCodeService;
+
     @Test
     void registerReturnsUser() throws Exception {
         // 注册接口：模拟 service 返回注册后的用户。
@@ -68,10 +73,23 @@ class SysUserControllerTest {
 
         mockMvc.perform(post("/system/users/register")
                         .contentType("application/json")
-                        .content("{\"username\":\"13900000003\",\"password\":\"123456\",\"nickname\":\"普通用户\"}"))
+                        .content("{\"username\":\"13900000003\",\"code\":\"123456\",\"password\":\"123456\",\"nickname\":\"普通用户\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.username").value("13900000003"));
+
+        verify(smsCodeService).verifyCode(eq("13900000003"), eq(SmsBizType.REGISTER), eq("123456"));
+    }
+
+    @Test
+    void requestSmsCodeReturnsSuccess() throws Exception {
+        mockMvc.perform(post("/system/users/sms-code/request")
+                        .contentType("application/json")
+                        .content("{\"phone\":\"13900000003\",\"bizType\":\"REGISTER\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        verify(smsCodeService).requestCode(eq("13900000003"), eq(SmsBizType.REGISTER));
     }
 
     @Test
@@ -110,13 +128,13 @@ class SysUserControllerTest {
     @Test
     void requestPasswordResetReturnsSuccess() throws Exception {
         // 请求短信验证码：手机号存在时返回成功。
-        when(passwordResetService.requestCode(eq("13900000003"))).thenReturn("123456");
-
         mockMvc.perform(post("/system/users/password-reset/request")
                         .contentType("application/json")
                         .content("{\"phone\":\"13900000003\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
+
+        verify(passwordResetService).requestCode(eq("13900000003"));
     }
 
     @Test
