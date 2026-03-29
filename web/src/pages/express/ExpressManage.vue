@@ -18,9 +18,28 @@
           style="min-width: 140px"
         />
         <n-button type="primary" :loading="loading" @click="fetchList">查询</n-button>
+        <n-button v-if="auth.role === 'USER'" @click="showClaim = true">添加包裹</n-button>
       </div>
       <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" :pagination="pagination" />
     </div>
+
+    <n-modal v-model:show="showClaim">
+      <div class="card" style="max-width: 520px; margin: 80px auto">
+        <div class="section-title">添加包裹</div>
+        <n-form ref="claimFormRef" :model="claimForm" :rules="claimRules" label-placement="top">
+          <n-form-item label="快递单号" path="trackingNumber">
+            <n-input v-model:value="claimForm.trackingNumber" placeholder="请输入快递单号" />
+          </n-form-item>
+          <n-form-item label="收件人手机号" path="receiverPhone">
+            <n-input v-model:value="claimForm.receiverPhone" placeholder="请输入收件人手机号" />
+          </n-form-item>
+          <div class="flex">
+            <n-button @click="showClaim = false">取消</n-button>
+            <n-button type="primary" :loading="claiming" @click="handleClaim">确认添加</n-button>
+          </div>
+        </n-form>
+      </div>
+    </n-modal>
 
     <n-modal v-model:show="showEdit">
       <div class="card" style="max-width: 520px; margin: 80px auto">
@@ -92,6 +111,7 @@ const updating = ref(false);
 const relocating = ref(false);
 const deletingId = ref(null);
 const checkoutingId = ref(null);
+const claiming = ref(false);
 const auth = useAuthStore();
 const isStaffOrAdmin = computed(() => ['STAFF', 'ADMIN'].includes(auth.role));
 const pagination = reactive({
@@ -194,6 +214,13 @@ const relocateForm = reactive({
   shelfLayer: null
 });
 
+const showClaim = ref(false);
+const claimFormRef = ref(null);
+const claimForm = reactive({
+  trackingNumber: '',
+  receiverPhone: ''
+});
+
 const editRules = {
   trackingNumber: { required: true, message: '快递单号不能为空', trigger: ['blur', 'input'] },
   receiverPhone: {
@@ -210,6 +237,15 @@ const editRules = {
 
 const relocateRules = {
   sizeType: buildRequiredSelectRule('尺寸类型不能为空')
+};
+
+const claimRules = {
+  trackingNumber: { required: true, message: '快递单号不能为空', trigger: ['blur', 'input'] },
+  receiverPhone: {
+    validator: () => PHONE_REGEX.test(claimForm.receiverPhone || ''),
+    message: '手机号格式不正确',
+    trigger: ['blur', 'input']
+  }
 };
 
 const fetchList = async () => {
@@ -330,6 +366,33 @@ const handleCheckout = async (row) => {
     return;
   } finally {
     checkoutingId.value = null;
+  }
+};
+
+const resetClaimForm = () => {
+  claimForm.trackingNumber = '';
+  claimForm.receiverPhone = '';
+};
+
+const handleClaim = async () => {
+  try {
+    claiming.value = true;
+    await claimFormRef.value?.validate();
+    await api.claimExpress({
+      trackingNumber: claimForm.trackingNumber.trim(),
+      receiverPhone: claimForm.receiverPhone.trim()
+    });
+    message.success('添加成功');
+    showClaim.value = false;
+    resetClaimForm();
+    await fetchList();
+  } catch (err) {
+    if (err?.errors) {
+      return;
+    }
+    return;
+  } finally {
+    claiming.value = false;
   }
 };
 

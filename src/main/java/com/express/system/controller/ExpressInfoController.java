@@ -56,8 +56,8 @@ public class ExpressInfoController {
             if (phone == null || phone.isBlank()) {
                 throw new RuntimeException("当前用户未绑定手机号");
             }
-            return ApiResponse.success(expressInfoService.listByFilter(
-                    trackingNumber, phone, status, null, null, null, false));
+            return ApiResponse.success(expressInfoService.listForUser(
+                    currentUser.getUserId(), phone, trackingNumber, status, false));
         }
         return ApiResponse.success(expressInfoService.listByFilter(
                 trackingNumber, receiverPhone, status, shelfCode, shelfLayer, sizeType, overdueOnly));
@@ -87,8 +87,26 @@ public class ExpressInfoController {
         if (operatorPhone == null || operatorPhone.isBlank()) {
             throw new RuntimeException("当前用户未绑定手机号");
         }
-        expressInfoService.checkOut(trackingNumber, operatorPhone);
+        UserRole role = currentUser == null ? null : currentUser.getRole();
+        Long operatorUserId = currentUser == null ? null : currentUser.getUserId();
+        expressInfoService.checkOut(trackingNumber, operatorPhone, role, operatorUserId);
         return ApiResponse.success("取件成功", true);
+    }
+
+    @Operation(summary = "用户按单号与收件人手机号添加包裹")
+    @PostMapping("/claim")
+    public ApiResponse<ExpressInfo> claim(@RequestBody ExpressClaimRequest request) {
+        JwtUser currentUser = getCurrentUser();
+        if (currentUser == null || currentUser.getRole() != UserRole.USER) {
+            throw new RuntimeException("仅普通用户可添加包裹");
+        }
+        String userPhone = currentUser.getUsername();
+        if (userPhone == null || userPhone.isBlank()) {
+            throw new RuntimeException("当前用户未绑定手机号");
+        }
+        ExpressInfo expressInfo = expressInfoService.claimForUser(
+                currentUser.getUserId(), userPhone, request.getTrackingNumber(), request.getReceiverPhone());
+        return ApiResponse.success("添加成功", expressInfo);
     }
 
     @Operation(summary = "快递更新")
@@ -241,6 +259,30 @@ public class ExpressInfoController {
 
         public void setSizeType(Integer sizeType) {
             this.sizeType = sizeType;
+        }
+    }
+
+    @Schema(description = "用户添加包裹请求")
+    public static class ExpressClaimRequest {
+        @Schema(description = "快递单号")
+        private String trackingNumber;
+        @Schema(description = "收件人手机号")
+        private String receiverPhone;
+
+        public String getTrackingNumber() {
+            return trackingNumber;
+        }
+
+        public void setTrackingNumber(String trackingNumber) {
+            this.trackingNumber = trackingNumber;
+        }
+
+        public String getReceiverPhone() {
+            return receiverPhone;
+        }
+
+        public void setReceiverPhone(String receiverPhone) {
+            this.receiverPhone = receiverPhone;
         }
     }
 

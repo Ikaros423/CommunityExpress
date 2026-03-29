@@ -12,6 +12,7 @@ export const api = {
   getExpress: (id) => http.get(`/system/expresses/${id}`),
   checkIn: (payload) => http.post('/system/expresses', payload),
   checkOut: (trackingNumber) => http.post(`/system/expresses/${trackingNumber}/checkout`),
+  claimExpress: (payload) => http.post('/system/expresses/claim', payload),
   updateExpress: (id, payload) => http.put(`/system/expresses/${id}`, payload),
   relocateExpress: (id, payload) => http.post(`/system/expresses/${id}/relocate`, payload),
   deleteExpress: (id) => http.delete(`/system/expresses/${id}`),
@@ -29,5 +30,9 @@ export const api = {
   getUser: (id) => http.get(`/system/users/${id}`),
   createUser: (payload) => http.post('/system/users', payload),
   updateUser: (id, payload) => http.put(`/system/users/${id}`, payload),
-  deleteUser: (id) => http.delete(`/system/users/${id}`)
+  deleteUser: (id) => http.delete(`/system/users/${id}`),
+
+  createSendOrder: (payload) => http.post('/system/send-orders', payload),
+  listSendOrders: (params) => http.get('/system/send-orders', { params }),
+  updateSendOrderStatus: (id, payload) => http.put(`/system/send-orders/${id}/status`, payload)
 };

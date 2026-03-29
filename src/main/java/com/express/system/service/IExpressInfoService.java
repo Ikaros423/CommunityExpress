@@ -1,6 +1,7 @@
 package com.express.system.service;
 
 import com.express.system.entity.ExpressInfo;
+import com.express.system.entity.enums.UserRole;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.express.system.controller.ExpressInfoController.ExpressCheckinRequest;
 
@@ -27,7 +28,7 @@ public interface IExpressInfoService extends IService<ExpressInfo> {
      * @param pickupPhone 实际取件人手机号
      * @return 是否核销成功
      */
-    boolean checkOut(String trackingNumber, String pickupPhone);
+    boolean checkOut(String trackingNumber, String pickupPhone, UserRole operatorRole, Long operatorUserId);
 
     /**
      * 更新快递信息
@@ -71,5 +72,13 @@ public interface IExpressInfoService extends IService<ExpressInfo> {
                                              Integer shelfLayer,
                                              Integer sizeType,
                                              Boolean overdueOnly);
+
+    java.util.List<ExpressInfo> listForUser(Long userId,
+                                            String userPhone,
+                                            String trackingNumber,
+                                            Integer status,
+                                            Boolean overdueOnly);
+
+    ExpressInfo claimForUser(Long userId, String userPhone, String trackingNumber, String receiverPhone);
 
 }

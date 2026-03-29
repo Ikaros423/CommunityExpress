@@ -1,8 +1,11 @@
 package com.express.system.service.impl;
 
 import com.express.system.entity.ExpressInfo;
+import com.express.system.entity.ExpressUserBinding;
 import com.express.system.entity.ShelfInfo;
+import com.express.system.entity.enums.UserRole;
 import com.express.system.mapper.ExpressInfoMapper;
+import com.express.system.mapper.ExpressUserBindingMapper;
 import com.express.system.service.IExpressInfoService;
 import com.express.system.service.IShelfInfoService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -13,7 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 import com.express.system.controller.ExpressInfoController.ExpressCheckinRequest;
@@ -31,6 +37,9 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
 
     @Autowired
     private IShelfInfoService shelfInfoService;
+
+    @Autowired
+    private ExpressUserBindingMapper expressUserBindingMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -106,7 +115,7 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean checkOut(String trackingNumber, String pickupPhone) {
+    public boolean checkOut(String trackingNumber, String pickupPhone, UserRole operatorRole, Long operatorUserId) {
         String normalizedTrackingNumber = safeTrim(trackingNumber);
         if (normalizedTrackingNumber == null || normalizedTrackingNumber.isBlank()) {
             throw new RuntimeException("快递单号不能为空");
@@ -122,6 +131,13 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
 
         if (expressInfo == null) {
             throw new RuntimeException("单号或手机号不匹配，无法核销");
+        }
+        if (operatorRole == UserRole.USER) {
+            boolean selfReceiver = normalizedPickupPhone.equals(safeTrim(expressInfo.getReceiverPhone()));
+            boolean isBound = isExpressBoundToUser(expressInfo.getId(), operatorUserId);
+            if (!selfReceiver && !isBound) {
+                throw new RuntimeException("该快递不属于当前用户，无法出库");
+            }
         }
         if (expressInfo.getStatus() == null || expressInfo.getStatus() != 1) {
             throw new RuntimeException("当前快递状态不允许取件");
@@ -345,6 +361,147 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
                     .orderByDesc(ExpressInfo::getCreateTime);
         }
         return query.list();
+    }
+
+    @Override
+    public List<ExpressInfo> listForUser(Long userId,
+                                         String userPhone,
+                                         String trackingNumber,
+                                         Integer status,
+                                         Boolean overdueOnly) {
+        if (userId == null) {
+            throw new RuntimeException("用户ID不能为空");
+        }
+        String normalizedUserPhone = safeTrim(userPhone);
+        if (normalizedUserPhone == null || normalizedUserPhone.isBlank()) {
+            throw new RuntimeException("当前用户未绑定手机号");
+        }
+
+        String normalizedTrackingNumber = safeTrim(trackingNumber);
+        boolean queryOverdueOnly = Boolean.TRUE.equals(overdueOnly);
+        LocalDateTime overdueThreshold = LocalDateTime.now().minus(48, ChronoUnit.HOURS);
+
+        List<ExpressUserBinding> bindings = expressUserBindingMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<ExpressUserBinding>()
+                        .eq("user_id", userId)
+                        .eq("is_deleted", 0)
+        );
+        List<Long> bindingIds = new ArrayList<>();
+        for (ExpressUserBinding binding : bindings) {
+            if (binding.getExpressId() != null) {
+                bindingIds.add(binding.getExpressId());
+            }
+        }
+
+        var query = this.lambdaQuery()
+                .eq(status != null, ExpressInfo::getStatus, status)
+                .like(normalizedTrackingNumber != null && !normalizedTrackingNumber.isBlank(),
+                        ExpressInfo::getTrackingNumber, normalizedTrackingNumber);
+
+        if (bindingIds.isEmpty()) {
+            query.eq(ExpressInfo::getReceiverPhone, normalizedUserPhone);
+        } else {
+            query.and(wrapper -> wrapper
+                    .eq(ExpressInfo::getReceiverPhone, normalizedUserPhone)
+                    .or()
+                    .in(ExpressInfo::getId, bindingIds));
+        }
+
+        if (queryOverdueOnly) {
+            query.eq(ExpressInfo::getStatus, 1)
+                    .le(ExpressInfo::getCreateTime, overdueThreshold)
+                    .orderByAsc(ExpressInfo::getCreateTime)
+                    .orderByAsc(ExpressInfo::getId);
+        } else {
+            query.orderByDesc(ExpressInfo::getUpdateTime)
+                    .orderByDesc(ExpressInfo::getCreateTime);
+        }
+
+        List<ExpressInfo> list = query.list();
+        if (bindingIds.isEmpty()) {
+            return list;
+        }
+        // 去重兜底：同一快递可能同时满足“本人手机号 + 已绑定”。
+        Set<Long> seen = new HashSet<>();
+        List<ExpressInfo> deduped = new ArrayList<>();
+        for (ExpressInfo item : list) {
+            if (item.getId() == null || seen.add(item.getId())) {
+                deduped.add(item);
+            }
+        }
+        return deduped;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ExpressInfo claimForUser(Long userId, String userPhone, String trackingNumber, String receiverPhone) {
+        if (userId == null) {
+            throw new RuntimeException("用户ID不能为空");
+        }
+        String normalizedUserPhone = safeTrim(userPhone);
+        String normalizedTrackingNumber = safeTrim(trackingNumber);
+        String normalizedReceiverPhone = safeTrim(receiverPhone);
+        if (normalizedUserPhone == null || normalizedUserPhone.isBlank()) {
+            throw new RuntimeException("当前用户未绑定手机号");
+        }
+        if (normalizedTrackingNumber == null || normalizedTrackingNumber.isBlank()) {
+            throw new RuntimeException("快递单号不能为空");
+        }
+        if (normalizedReceiverPhone == null || normalizedReceiverPhone.isBlank()) {
+            throw new RuntimeException("收件人手机号不能为空");
+        }
+
+        ExpressInfo expressInfo = this.lambdaQuery()
+                .eq(ExpressInfo::getTrackingNumber, normalizedTrackingNumber)
+                .one();
+        if (expressInfo == null) {
+            throw new RuntimeException("快递不存在");
+        }
+        if (expressInfo.getStatus() == null || (expressInfo.getStatus() != 0 && expressInfo.getStatus() != 1)) {
+            throw new RuntimeException("当前快递状态不支持绑定");
+        }
+        if (!normalizedReceiverPhone.equals(safeTrim(expressInfo.getReceiverPhone()))) {
+            throw new RuntimeException("单号与收件人手机号不匹配");
+        }
+        if (normalizedUserPhone.equals(safeTrim(expressInfo.getReceiverPhone()))) {
+            return expressInfo;
+        }
+
+        ExpressUserBinding existingBinding = expressUserBindingMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<ExpressUserBinding>()
+                        .eq("express_id", expressInfo.getId())
+                        .eq("user_id", userId)
+                        .eq("is_deleted", 0)
+        );
+        if (existingBinding != null) {
+            return expressInfo;
+        }
+
+        ExpressUserBinding binding = new ExpressUserBinding();
+        binding.setExpressId(expressInfo.getId());
+        binding.setUserId(userId);
+        LocalDateTime now = LocalDateTime.now();
+        binding.setCreateTime(now);
+        binding.setUpdateTime(now);
+        binding.setIsDeleted((byte) 0);
+        int inserted = expressUserBindingMapper.insert(binding);
+        if (inserted <= 0) {
+            throw new RuntimeException("添加包裹失败");
+        }
+        return expressInfo;
+    }
+
+    private boolean isExpressBoundToUser(Long expressId, Long userId) {
+        if (expressId == null || userId == null) {
+            return false;
+        }
+        ExpressUserBinding binding = expressUserBindingMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<ExpressUserBinding>()
+                        .eq("express_id", expressId)
+                        .eq("user_id", userId)
+                        .eq("is_deleted", 0)
+        );
+        return binding != null;
     }
 
     private String safeTrim(String value) {

@@ -58,8 +58,8 @@ class ExpressInfoControllerTest {
         SecurityContextHolder.getContext().setAuthentication(auth);
 
         // 当传入期望参数时，模拟 service 返回一条记录。
-        when(expressInfoService.listByFilter(eq("SF100000001"), eq("13900000003"),
-                eq(null), eq(null), eq(null), eq(null), eq(false)))
+        when(expressInfoService.listForUser(eq(1L), eq("13900000003"),
+                eq("SF100000001"), eq(null), eq(false)))
                 .thenReturn(List.of(new ExpressInfo()));
 
         try {
@@ -117,7 +117,28 @@ class ExpressInfoControllerTest {
                     .andExpect(jsonPath("$.code").value(200));
 
             // 校验 service 收到操作者手机号。
-            verify(expressInfoService).checkOut(eq("SF100000001"), eq("13900000002"));
+            verify(expressInfoService).checkOut(eq("SF100000001"), eq("13900000002"), eq(UserRole.STAFF), eq(3L));
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void claimAsUserBindsExpress() throws Exception {
+        JwtUser jwtUser = new JwtUser(1L, "13900000003", UserRole.USER);
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                jwtUser, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        when(expressInfoService.claimForUser(eq(1L), eq("13900000003"), eq("SF100000001"), eq("13800000001")))
+                .thenReturn(new ExpressInfo());
+
+        try {
+            mockMvc.perform(post("/system/expresses/claim")
+                            .contentType("application/json")
+                            .content("{\"trackingNumber\":\"SF100000001\",\"receiverPhone\":\"13800000001\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(200));
         } finally {
             SecurityContextHolder.clearContext();
         }
