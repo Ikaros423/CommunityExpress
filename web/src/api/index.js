@@ -7,6 +7,9 @@ export const api = {
   requestSmsCode: (payload) => http.post('/system/users/sms-code/request', payload),
   requestResetCode: (payload) => http.post('/system/users/password-reset/request', payload),
   confirmReset: (payload) => http.post('/system/users/password-reset/confirm', payload),
+  getDashboardSummary: () => http.get('/system/dashboard/summary'),
+  getDashboardTrend: (params) => http.get('/system/dashboard/trend', { params }),
+  getDashboardRanks: () => http.get('/system/dashboard/ranks'),
 
   listExpresses: (params) => http.get('/system/expresses', { params }),
   getExpress: (id) => http.get(`/system/expresses/${id}`),

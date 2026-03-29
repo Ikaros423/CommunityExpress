@@ -54,6 +54,8 @@ public class SecurityConfig {
                         .hasAnyRole("USER", "STAFF", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/system/send-orders/*/status")
                         .hasAnyRole("STAFF", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/system/dashboard/**")
+                        .hasAnyRole("STAFF", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/system/expresses")
                         .hasAnyRole("USER", "STAFF", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/system/expresses/*/checkout")
