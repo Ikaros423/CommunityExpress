@@ -18,6 +18,12 @@ Quick reference for project structure, API conventions, database schema, and ope
 - `src/main/java/com/express/system/mapper`: Mapper interfaces.
 - `src/main/resources/mapper`: Mapper XMLs (currently empty).
 - `src/main/java/com/express/system/common`: `ApiResponse`, `GlobalExceptionHandler`.
+- `src/main/java/com/express/system/common/error`: 统一错误码 `ErrorCode`。
+- `src/main/java/com/express/system/common/exception`: 业务异常 `BusinessException`。
+- `src/main/java/com/express/system/common/page`: 通用分页 `PageRequest` / `PageResponse`。
+- `src/main/java/com/express/system/config/MybatisPlusConfig.java`: MyBatis-Plus 分页拦截器配置。
+- `src/main/java/com/express/system/security/CurrentUserProvider.java`: 统一当前登录用户获取与角色校验。
+- `src/main/java/com/express/system/dto/query`: 列表分页查询 DTO（express/shelf/send-order/user）。
 - `src/main/resources/application.properties`: datasource config.
 - `src/main/resources/sql/test_data_mysql8.sql`: test data script.
 - `CommunityExpress.postman_collection.json`: Postman collection with variables and auto-id scripts.
@@ -27,14 +33,19 @@ Quick reference for project structure, API conventions, database schema, and ope
 - Base module path: `/system`.
 - Response wrapper: `ApiResponse<T>` with fields `code`, `message`, `data`.
   - Success: `code=200`, `message=success` or custom.
-- Error handling: `RuntimeException` => `400`, other `Exception` => `500`.
+- Error handling:
+  - `BusinessException` 按 `ErrorCode` 映射（400/401/403/404/409 等）。
+  - 其他未捕获异常统一 `500`。
+- Pagination model:
+  - 请求参数统一：`page`, `pageSize`, `sort`（默认 `page=1`, `pageSize=15`, `pageSize` 最大 100）。
+  - 列表响应统一：`ApiResponse<PageResponse<T>>`，字段：`list`, `total`, `page`, `pageSize`。
 
 ## Implemented APIs
 ### ExpressInfoController (`/system/expresses`)
 - `GET /system/expresses`
   - Query params: `trackingNumber`, `receiverPhone`, `status`, `shelfCode`, `shelfLayer`, `sizeType` (all optional).
   - Query param: `overdueOnly`（员工/管理员可用；`true` 时筛选 48h+ 滞留且按入库时间升序）。
-  - Returns `ApiResponse<List<ExpressInfo>>`.
+  - Returns `ApiResponse<PageResponse<ExpressInfo>>`.
   - USER 角色默认按“本人手机号 + 已绑定包裹”查询。
 - `GET /system/expresses/{id}`
   - Returns `ApiResponse<ExpressInfo>`.
@@ -59,7 +70,7 @@ Quick reference for project structure, API conventions, database schema, and ope
 ### ShelfInfoController (`/system/shelves`)
 - `GET /system/shelves`
   - Query params: `shelfType`, `status`, `shelfCode`, `shelfLayer` (all optional).
-  - Returns `ApiResponse<List<ShelfInfo>>`.
+  - Returns `ApiResponse<PageResponse<ShelfInfo>>`.
 - `GET /system/shelves/{id}`
   - Returns `ApiResponse<ShelfInfo>`.
 - `GET /system/shelves/lookup`
@@ -83,7 +94,7 @@ Quick reference for project structure, API conventions, database schema, and ope
 ### SysUserController (`/system/users`)
 - `GET /system/users`
   - Query params: `username`, `role`, `status` (optional).
-  - Returns `ApiResponse<List<SysUser>>` (password masked).
+  - Returns `ApiResponse<PageResponse<SysUser>>` (password masked).
 - `GET /system/users/{id}`
   - Returns `ApiResponse<SysUser>` (password masked).
 - `POST /system/users`
@@ -117,6 +128,7 @@ Quick reference for project structure, API conventions, database schema, and ope
   - USER 创建寄件申请（寄件手机号以后端登录账号为准）。
 - `GET /system/send-orders`
   - USER 查询本人申请；STAFF/ADMIN 可按状态/寄件手机号筛选。
+  - Returns `ApiResponse<PageResponse<SendOrder>>`。
 - `PUT /system/send-orders/{id}/status`
   - STAFF/ADMIN 更新状态，限制合法流转：`0->1/3`, `1->2/3`。
 
@@ -143,11 +155,22 @@ Quick reference for project structure, API conventions, database schema, and ope
 - 编辑弹窗：快递/货架/用户列表均提供编辑更新弹窗（NModal + NForm），提交后刷新列表并保留筛选条件。
 - 表单校验：手机号、密码长度与后端规则一致；必填项前端拦截（手机号正则 `^1\\d{10}$`，密码 6-20）。
 - 请求约定：统一 `ApiResponse`，`/system` 代理到后端；API 已对接到可直接演示。
+- 注意：后端列表接口已统一分页，前端读取列表需使用 `data.list`，并处理 `data.total/page/pageSize`。
 - 交互优化：列表请求带 loading；错误提示优先展示后端 message。
 - 用户端出库入口：快递查询页顶部提供单号出库输入框与按钮，仅 USER 可见。
 - 看板图表：ECharts 按需引入（`echarts/core`），并修复刷新后角色恢复时图表不显示问题（监听角色变化后加载）。
 
 ## Business Logic Notes
+### Auth & exception refactor (2026-03-29)
+- `CurrentUserProvider` 统一登录用户解析与角色校验（`getCurrentUserOrNull/getCurrentUserOrThrow/requireRole`）。
+- controller 中重复 `getCurrentUser()` 已移除，角色判断收敛。
+- 业务校验异常统一使用 `BusinessException`，由 `GlobalExceptionHandler` 做统一响应映射。
+
+### Pagination refactor (2026-03-29)
+- Express/Shelf/SendOrder/SysUser 列表接口统一分页响应。
+- Service 层新增 `page*` 方法（保留部分 `list*` 方法供复用）。
+- MyBatis-Plus 已开启分页拦截器，避免全量查询后内存分页。
+
 ### Express check-in
 - Requires: `trackingNumber`, `receiverPhone`, `sizeType`.
 - Rejects duplicate `trackingNumber`.
@@ -208,6 +231,7 @@ Quick reference for project structure, API conventions, database schema, and ope
 - Summary/Trend/Ranks 三个聚合接口，均为只读。
 - 趋势按天统计近 N 天（默认 7，最大 30），空日期补 0。
 - 滞留定义：`status=1 && create_time <= now-48h`。
+- 权限校验已收敛为 `CurrentUserProvider.requireRole(STAFF, ADMIN)`。
 
 ## Database Schema (from entities)
 ### `express_info`
