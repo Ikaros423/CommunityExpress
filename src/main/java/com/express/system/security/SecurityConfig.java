@@ -46,6 +46,14 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/system/expresses/claim")
+                        .hasRole("USER")
+                        .requestMatchers(HttpMethod.POST, "/system/send-orders")
+                        .hasRole("USER")
+                        .requestMatchers(HttpMethod.GET, "/system/send-orders")
+                        .hasAnyRole("USER", "STAFF", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/system/send-orders/*/status")
+                        .hasAnyRole("STAFF", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/system/expresses")
                         .hasAnyRole("USER", "STAFF", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/system/expresses/*/checkout")

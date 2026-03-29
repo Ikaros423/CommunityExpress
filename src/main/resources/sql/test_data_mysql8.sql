@@ -7,7 +7,36 @@ USE community_express;
 
 SET NAMES utf8mb4;
 
+CREATE TABLE IF NOT EXISTS express_user_binding (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    express_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    is_deleted TINYINT DEFAULT 0,
+    UNIQUE KEY uk_express_user (express_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS send_order (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    sender_phone VARCHAR(20) NOT NULL,
+    sender_address VARCHAR(255) NOT NULL,
+    receiver_name VARCHAR(64) NOT NULL,
+    receiver_phone VARCHAR(20) NOT NULL,
+    receiver_address VARCHAR(255) NOT NULL,
+    package_type TINYINT NOT NULL,
+    status TINYINT NOT NULL DEFAULT 0,
+    remark VARCHAR(255),
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    is_deleted TINYINT DEFAULT 0
+);
+
 -- ========= 清理旧测试数据 =========
+DELETE FROM express_user_binding WHERE user_id IN (1, 2, 3);
+DELETE FROM send_order WHERE user_id IN (1, 2, 3);
+
 DELETE FROM express_info
 WHERE tracking_number IN
       ('SF100000001', 'ZT100000002', 'YT100000003', 'JD100000004', 'YD100000005',

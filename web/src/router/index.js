@@ -7,6 +7,7 @@ import ForgotPassword from '../pages/ForgotPassword.vue';
 import Dashboard from '../pages/Dashboard.vue';
 import ExpressManage from '../pages/express/ExpressManage.vue';
 import ExpressCheckin from '../pages/express/ExpressCheckin.vue';
+import SendOrderManage from '../pages/send/SendOrderManage.vue';
 import ShelfManage from '../pages/shelf/ShelfManage.vue';
 import UserManage from '../pages/user/UserManage.vue';
 import NotFound from '../pages/NotFound.vue';
@@ -23,6 +24,7 @@ const routes = [
     children: [
       { path: '', component: Dashboard },
       { path: 'expresses', component: ExpressManage, meta: { roles: ['USER', 'STAFF', 'ADMIN'] } },
+      { path: 'send-orders', component: SendOrderManage, meta: { roles: ['USER', 'STAFF', 'ADMIN'] } },
       { path: 'express/manage', redirect: '/expresses' },
       { path: 'express/checkin', component: ExpressCheckin, meta: { roles: ['STAFF', 'ADMIN'] } },
       { path: 'shelves', component: ShelfManage, meta: { roles: ['STAFF', 'ADMIN'] } },

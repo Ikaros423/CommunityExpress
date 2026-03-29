@@ -28,7 +28,8 @@ const auth = useAuthStore();
 
 const baseMenus = [
   { label: '概览', key: '/' },
-  { label: '快递管理', key: '/expresses', roles: ['USER', 'STAFF', 'ADMIN'] }
+  { label: '快递管理', key: '/expresses', roles: ['USER', 'STAFF', 'ADMIN'] },
+  { label: '寄件管理', key: '/send-orders', roles: ['USER', 'STAFF', 'ADMIN'] }
 ];
 
 const staffMenus = [
