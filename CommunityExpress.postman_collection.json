@@ -1,0 +1,517 @@
+{
+  "info": {
+    "name": "CommunityExpress API",
+    "_postman_id": "b2f6b8a7-3f7c-4d1a-9b2b-2f9f0f6a8a11",
+    "description": "CommunityExpress RESTful API collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "shelfId", "value": "" },
+    { "key": "expressId", "value": "" },
+    { "key": "trackingNumber", "value": "SF100000001" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/users/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "users", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"13900000003\",\n  \"password\": \"123456\",\n  \"nickname\": \"普通用户\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.id) {",
+                  "  pm.environment.set(\"userId\", json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/users/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "users", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account\": \"13900000003\",\n  \"password\": \"123456\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.token) {",
+                  "  pm.environment.set(\"token\", json.data.token);",
+                  "}",
+                  "if (json && json.data && json.data.user && json.data.user.id) {",
+                  "  pm.environment.set(\"userId\", json.data.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/users/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "users", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "Password Reset Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/users/password-reset/request",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "users", "password-reset", "request"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"phone\\\": \\\"13900000003\\\"\\n}"
+            }
+          }
+        },
+        {
+          "name": "Password Reset Confirm",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/users/password-reset/confirm",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "users", "password-reset", "confirm"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"phone\\\": \\\"13900000003\\\",\\n  \\\"code\\\": \\\"123456\\\",\\n  \\\"newPassword\\\": \\\"654321\\\"\\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/users?role=STAFF",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "users"],
+              "query": [
+                { "key": "role", "value": "STAFF" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get User Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "users", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "users"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"13900000002\",\n  \"password\": \"123456\",\n  \"role\": \"STAFF\",\n  \"nickname\": \"驿站员工\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.id) {",
+                  "  pm.environment.set(\"userId\", json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "users", "{{userId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nickname\": \"系统管理员\",\n  \"status\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "users", "{{userId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Shelves",
+      "item": [
+        {
+          "name": "List Shelves",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/shelves?status=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "shelves"],
+              "query": [
+                { "key": "status", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Shelf Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/shelves/{{shelfId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "shelves", "{{shelfId}}"]
+            }
+          }
+        },
+        {
+          "name": "Lookup Shelf",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/shelves/lookup?shelfCode=101&shelfLayer=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "shelves", "lookup"],
+              "query": [
+                { "key": "shelfCode", "value": "101" },
+                { "key": "shelfLayer", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recommend Shelf",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/shelves/recommend?sizeType=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "shelves", "recommend"],
+              "query": [
+                { "key": "sizeType", "value": "0" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Shelf",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/shelves",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "shelves"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shelfCode\": 101,\n  \"shelfLayer\": 1,\n  \"shelfName\": \"A01\",\n  \"shelfType\": 0,\n  \"totalCapacity\": 50,\n  \"currentUsage\": 0,\n  \"status\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.id) {",
+                  "  pm.environment.set(\"shelfId\", json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Shelf",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/shelves/{{shelfId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "shelves", "{{shelfId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shelfName\": \"A01-更新\",\n  \"status\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Shelf",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/shelves/{{shelfId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "shelves", "{{shelfId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Expresses",
+      "item": [
+        {
+          "name": "List Expresses",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/expresses?trackingNumber=SF100000001",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "expresses"],
+              "query": [
+                { "key": "trackingNumber", "value": "SF100000001" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Express Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/expresses/{{expressId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "expresses", "{{expressId}}"]
+            }
+          }
+        },
+        {
+          "name": "Check In",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/expresses",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "expresses"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackingNumber\": \"SF100000001\",\n  \"logisticsCompany\": \"顺丰\",\n  \"sizeType\": 0,\n  \"receiverName\": \"张三\",\n  \"receiverPhone\": \"13900000003\",\n  \"useRecommendShelf\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.id) {",
+                  "  pm.environment.set(\"expressId\", json.data.id);",
+                  "}",
+                  "if (json && json.data && json.data.trackingNumber) {",
+                  "  pm.environment.set(\"trackingNumber\", json.data.trackingNumber);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Checkout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/expresses/{{trackingNumber}}/checkout",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "expresses", "{{trackingNumber}}", "checkout"]
+            }
+          }
+        },
+        {
+          "name": "Update Express",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/expresses/{{expressId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "expresses", "{{expressId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackingNumber\": \"SF100000001\",\n  \"status\": 1,\n  \"receiverName\": \"张三\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Relocate Express",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/expresses/{{expressId}}/relocate",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "expresses", "{{expressId}}", "relocate"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sizeType\": 0,\n  \"shelfCode\": 101,\n  \"shelfLayer\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Express",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/system/expresses/{{expressId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "expresses", "{{expressId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

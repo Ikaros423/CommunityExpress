@@ -1,6 +1,7 @@
 package com.express.system.service;
 
 import com.express.system.entity.ExpressInfo;
+import com.express.system.entity.enums.UserRole;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.express.system.controller.ExpressInfoController.ExpressCheckinRequest;
 
@@ -27,7 +28,7 @@ public interface IExpressInfoService extends IService<ExpressInfo> {
      * @param pickupPhone 实际取件人手机号
      * @return 是否核销成功
      */
-    boolean checkOut(String trackingNumber, String pickupPhone);
+    boolean checkOut(String trackingNumber, String pickupPhone, UserRole operatorRole, Long operatorUserId);
 
     /**
      * 更新快递信息
@@ -61,6 +62,7 @@ public interface IExpressInfoService extends IService<ExpressInfo> {
      * @param shelfCode 货架编号
      * @param shelfLayer 货架层
      * @param sizeType 快递规格
+     * @param overdueOnly 是否仅查询滞留快递（超过48小时未取）
      * @return 快递列表
      */
     java.util.List<ExpressInfo> listByFilter(String trackingNumber,
@@ -68,6 +70,15 @@ public interface IExpressInfoService extends IService<ExpressInfo> {
                                              Integer status,
                                              Integer shelfCode,
                                              Integer shelfLayer,
-                                             Integer sizeType);
+                                             Integer sizeType,
+                                             Boolean overdueOnly);
+
+    java.util.List<ExpressInfo> listForUser(Long userId,
+                                            String userPhone,
+                                            String trackingNumber,
+                                            Integer status,
+                                            Boolean overdueOnly);
+
+    ExpressInfo claimForUser(Long userId, String userPhone, String trackingNumber, String receiverPhone);
 
 }

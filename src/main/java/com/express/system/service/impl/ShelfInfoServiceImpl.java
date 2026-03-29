@@ -1,14 +1,20 @@
 package com.express.system.service.impl;
 
+import com.express.system.dto.ShelfLoadVO;
 import com.express.system.entity.ShelfInfo;
 import com.express.system.mapper.ShelfInfoMapper;
 import com.express.system.service.IShelfInfoService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static java.lang.Integer.max;
 
@@ -23,8 +29,11 @@ import static java.lang.Integer.max;
 @Service
 public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo> implements IShelfInfoService {
 
+    private static final Logger log = LoggerFactory.getLogger(ShelfInfoServiceImpl.class);
+
     @Override
     public ShelfInfo getRecommendShelf(Integer sizeType) {
+        // 按类型与占用率推荐货架（优先未满）。
         return this.lambdaQuery()
                 .eq(ShelfInfo::getShelfType, sizeType)
                 .eq(ShelfInfo::getStatus, 1)
@@ -41,6 +50,7 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
                                         Integer status,
                                         Integer shelfCode,
                                         Integer shelfLayer) {
+        // 按类型/状态/编号/层过滤货架。
         return this.lambdaQuery()
                 .eq(shelfType != null, ShelfInfo::getShelfType, shelfType)
                 .eq(status != null, ShelfInfo::getStatus, status)
@@ -48,6 +58,17 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
                 .eq(shelfLayer != null, ShelfInfo::getShelfLayer, shelfLayer)
                 .orderByAsc(ShelfInfo::getShelfCode, ShelfInfo::getShelfLayer)
                 .list();
+    }
+
+    @Override
+    public List<ShelfLoadVO> listLoadByFilter(Integer shelfType,
+                                              Integer status,
+                                              Integer shelfCode,
+                                              Integer shelfLayer) {
+        return listByFilter(shelfType, status, shelfCode, shelfLayer)
+                .stream()
+                .map(this::toLoadVO)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -65,10 +86,10 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
         // 1. 防止实际容量小于0
         int newUsage = max(currentUsage + delta, 0);
 
-        // 2. 超过最大容量时，我们只在日志或业务层做记录，不抛异常
+        // 2. 超过最大容量只记录日志，不抛异常
         if (newUsage > shelf.getTotalCapacity()) {
-            // 这里可以记录一个警告日志，或者在前端返回一个“超额存储”的状态
-            System.out.println("警告：货架 " + shelf.getShelfCode() + shelf.getShelfLayer() + " 已超负荷存储！");
+            log.warn("警告：货架 {}-{} 已超负荷存储（当前占用: {}, 容量: {}）",
+                    shelf.getShelfCode(), shelf.getShelfLayer(), newUsage, shelf.getTotalCapacity());
         }
 
         // 3. 执行更新
@@ -83,6 +104,7 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
         if (shelfCode == null || shelfLayer == null) {
             throw new IllegalArgumentException("shelfCode 和 shelfLayer 不能为空");
         }
+        // 货架编号+层唯一。
         return this.lambdaQuery()
                 .eq(ShelfInfo::getShelfCode, shelfCode)
                 .eq(ShelfInfo::getShelfLayer, shelfLayer)
@@ -182,5 +204,29 @@ public class ShelfInfoServiceImpl extends ServiceImpl<ShelfInfoMapper, ShelfInfo
             throw new RuntimeException("删除货架失败");
         }
         return true;
+    }
+
+    private ShelfLoadVO toLoadVO(ShelfInfo shelf) {
+        ShelfLoadVO vo = new ShelfLoadVO();
+        vo.setId(shelf.getId());
+        vo.setShelfCode(shelf.getShelfCode());
+        vo.setShelfLayer(shelf.getShelfLayer());
+        vo.setShelfName(shelf.getShelfName());
+        vo.setShelfType(shelf.getShelfType());
+        vo.setStatus(shelf.getStatus());
+
+        int currentUsage = shelf.getCurrentUsage() == null ? 0 : shelf.getCurrentUsage();
+        int totalCapacity = shelf.getTotalCapacity() == null ? 0 : shelf.getTotalCapacity();
+        vo.setCurrentUsage(currentUsage);
+        vo.setTotalCapacity(totalCapacity);
+
+        if (totalCapacity <= 0) {
+            vo.setLoadRate(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+        } else {
+            BigDecimal loadRate = BigDecimal.valueOf(currentUsage)
+                    .divide(BigDecimal.valueOf(totalCapacity), 2, RoundingMode.HALF_UP);
+            vo.setLoadRate(loadRate);
+        }
+        return vo;
     }
 }

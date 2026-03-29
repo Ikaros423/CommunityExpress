@@ -31,6 +31,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Override
     public List<SysUser> listByFilter(String username, UserRole role, Integer status) {
         String normalizedUsername = safeTrim(username);
+        // 按用户名/角色/状态过滤，并对返回结果做密码脱敏。
         List<SysUser> list = this.lambdaQuery()
                 .like(normalizedUsername != null && !normalizedUsername.isBlank(), SysUser::getUsername, normalizedUsername)
                 .eq(role != null, SysUser::getRole, role)
@@ -75,6 +76,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
 
         checkUsernameUnique(username, null);
+        // 持久化时使用 BCrypt 加密密码。
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
         user.setNickname(safeTrim(user.getNickname()));
@@ -105,6 +107,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new RuntimeException("用户不存在");
         }
 
+        // 仅更新传入字段，避免空值覆盖。
         SysUser updateEntity = new SysUser();
         updateEntity.setId(user.getId());
 
@@ -177,6 +180,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         checkUsernameUnique(normalizedUsername, null);
 
+        // 注册时固定 USER 角色并加密密码。
         SysUser user = new SysUser();
         user.setUsername(normalizedUsername);
         user.setPassword(passwordEncoder.encode(normalizedPassword));
@@ -206,6 +210,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new RuntimeException("密码不能为空");
         }
 
+        // 通过用户名（手机号）登录。
         SysUser user = this.lambdaQuery()
                 .eq(SysUser::getUsername, normalizedAccount)
                 .one();

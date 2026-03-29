@@ -12,5 +12,4 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  * @since 2026-02-25
  */
 public interface ExpressInfoMapper extends BaseMapper<ExpressInfo> {
-
 }
