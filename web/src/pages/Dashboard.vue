@@ -188,6 +188,10 @@ const renderTrendChart = async () => {
     }
     return;
   }
+  if (trendChart?.getDom?.() !== trendChartRef.value) {
+    trendChart?.dispose();
+    trendChart = null;
+  }
   if (!trendChart) {
     trendChart = init(trendChartRef.value);
   }
@@ -241,9 +245,7 @@ const fetchTrend = async () => {
     trendError.value = '趋势数据加载失败';
   } finally {
     trendLoading.value = false;
-    if (!trendError.value && trendData.value.length) {
-      await renderTrendChart();
-    }
+    await renderTrendChart();
   }
 };
 
