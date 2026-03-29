@@ -39,7 +39,7 @@ public class ExpressInfo implements Serializable {
     @TableField("logistics_company")
     private String logisticsCompany;
 
-    @Schema(description = "规格,0-标准(小件),1-大件,2-易碎,3-冷链")
+    @Schema(description = "规格,0-标准(小件),1-大件,2-冷链,3-易碎")
     @TableField("size_type")
     private Byte sizeType;
 
