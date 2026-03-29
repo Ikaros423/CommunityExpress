@@ -3,6 +3,8 @@ package com.express.system.controller;
 import com.express.system.entity.SysUser;
 import com.express.system.entity.enums.SmsBizType;
 import com.express.system.entity.enums.UserRole;
+import com.express.system.common.page.PageResponse;
+import com.express.system.security.CurrentUserProvider;
 import com.express.system.security.JwtUtil;
 import com.express.system.service.ISysUserService;
 import com.express.system.service.PasswordResetService;
@@ -63,6 +65,9 @@ class SysUserControllerTest {
     @MockBean
     private SmsCodeService smsCodeService;
 
+    @MockBean
+    private CurrentUserProvider currentUserProvider;
+
     @Test
     void registerReturnsUser() throws Exception {
         // 注册接口：模拟 service 返回注册后的用户。
@@ -117,12 +122,13 @@ class SysUserControllerTest {
         SysUser user = new SysUser();
         user.setId(3L);
         user.setUsername("13900000002");
-        when(sysUserService.listByFilter(eq(null), eq(null), eq(null))).thenReturn(List.of(user));
+        when(sysUserService.pageByFilter(eq(null), eq(null), eq(null), any()))
+                .thenReturn(PageResponse.of(List.of(user), 1, 1, 15));
 
         mockMvc.perform(get("/system/users"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data[0].username").value("13900000002"));
+                .andExpect(jsonPath("$.data.list[0].username").value("13900000002"));
     }
 
     @Test

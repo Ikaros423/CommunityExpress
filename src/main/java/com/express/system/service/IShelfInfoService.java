@@ -3,6 +3,8 @@ package com.express.system.service;
 import com.express.system.dto.ShelfLoadVO;
 import com.express.system.entity.ShelfInfo;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.express.system.common.page.PageRequest;
+import com.express.system.common.page.PageResponse;
 
 /**
  * <p>
@@ -50,6 +52,12 @@ public interface IShelfInfoService extends IService<ShelfInfo> {
                                            Integer status,
                                            Integer shelfCode,
                                            Integer shelfLayer);
+
+    PageResponse<ShelfInfo> pageByFilter(Integer shelfType,
+                                         Integer status,
+                                         Integer shelfCode,
+                                         Integer shelfLayer,
+                                         PageRequest pageRequest);
 
     java.util.List<ShelfLoadVO> listLoadByFilter(Integer shelfType,
                                                  Integer status,

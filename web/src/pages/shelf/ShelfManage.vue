@@ -76,22 +76,14 @@
 import { h, onMounted, reactive, ref } from 'vue';
 import { NButton, useMessage } from 'naive-ui';
 import { api } from '../../api';
+import { usePagedTable } from '../../composables/usePagedTable';
 import { buildRequiredNumberRule, buildRequiredSelectRule } from '../../constants/validation';
+import { formatLabel } from '../../utils/format';
 
 const message = useMessage();
-const rows = ref([]);
-const loading = ref(false);
 const creating = ref(false);
 const updating = ref(false);
 const deletingId = ref(null);
-const pagination = reactive({
-  page: 1,
-  pageSize: 15,
-  showSizePicker: false,
-  onChange: (page) => {
-    pagination.page = page;
-  }
-});
 const filters = reactive({
   shelfCode: null,
   shelfLayer: null,
@@ -144,8 +136,8 @@ const statusLabelMap = {
   1: '可用'
 };
 
-const getTypeLabel = (value) => typeLabelMap[value] ?? String(value ?? '-');
-const getStatusLabel = (value) => statusLabelMap[value] ?? String(value ?? '-');
+const getTypeLabel = (value) => formatLabel(typeLabelMap, value);
+const getStatusLabel = (value) => formatLabel(statusLabelMap, value);
 const getLoadRatioLabel = (row) => {
   const ratio = getLoadRatioNumber(row);
   return `${Math.round(ratio * 100)}%`;
@@ -219,20 +211,25 @@ const createRules = {
   totalCapacity: buildRequiredNumberRule('容量不能为空')
 };
 
+const {
+  rows,
+  loading,
+  pagination,
+  fetchList: fetchPage,
+  search: searchPage
+} = usePagedTable(({ page, pageSize }) => api.listShelves({
+  shelfCode: filters.shelfCode || undefined,
+  shelfLayer: filters.shelfLayer || undefined,
+  status: filters.status ?? undefined,
+  page,
+  pageSize
+}));
+
 const fetchList = async () => {
   try {
-    loading.value = true;
-    const res = await api.listShelfLoads({
-      shelfCode: filters.shelfCode || undefined,
-      shelfLayer: filters.shelfLayer || undefined,
-      status: filters.status ?? undefined
-    });
-    rows.value = res.data || [];
-    pagination.page = 1;
+    await searchPage();
   } catch (err) {
     return;
-  } finally {
-    loading.value = false;
   }
 };
 
@@ -270,7 +267,7 @@ const handleCreate = async () => {
     message.success('新增成功');
     showCreate.value = false;
     resetCreateForm();
-    await fetchList();
+    await fetchPage();
   } catch (err) {
     if (err?.errors) {
       return;
@@ -308,7 +305,7 @@ const handleUpdate = async () => {
     });
     message.success('更新成功');
     showEdit.value = false;
-    await fetchList();
+    await fetchPage();
   } catch (err) {
     if (err?.errors) {
       return;
@@ -327,7 +324,7 @@ const handleDelete = async (row) => {
     deletingId.value = row.id;
     await api.deleteShelf(row.id);
     message.success('删除成功');
-    await fetchList();
+    await fetchPage();
   } catch (err) {
     return;
   } finally {

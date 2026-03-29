@@ -1,9 +1,13 @@
 package com.express.system.controller;
 
 import com.express.system.common.ApiResponse;
+import com.express.system.common.exception.BusinessException;
+import com.express.system.common.page.PageResponse;
+import com.express.system.dto.query.UserPageQuery;
 import com.express.system.entity.SysUser;
 import com.express.system.entity.enums.SmsBizType;
 import com.express.system.entity.enums.UserRole;
+import com.express.system.security.CurrentUserProvider;
 import com.express.system.security.JwtUser;
 import com.express.system.security.JwtUtil;
 import com.express.system.service.ISysUserService;
@@ -13,7 +17,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,9 +33,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import java.util.List;
 
 /**
  * <p>
@@ -48,25 +48,32 @@ import java.util.List;
 @Validated
 public class SysUserController {
 
-    @Autowired
-    private ISysUserService sysUserService;
+    private final ISysUserService sysUserService;
+    private final JwtUtil jwtUtil;
+    private final PasswordResetService passwordResetService;
+    private final SmsCodeService smsCodeService;
+    private final CurrentUserProvider currentUserProvider;
 
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private PasswordResetService passwordResetService;
-
-    @Autowired
-    private SmsCodeService smsCodeService;
+    public SysUserController(ISysUserService sysUserService,
+                             JwtUtil jwtUtil,
+                             PasswordResetService passwordResetService,
+                             SmsCodeService smsCodeService,
+                             CurrentUserProvider currentUserProvider) {
+        this.sysUserService = sysUserService;
+        this.jwtUtil = jwtUtil;
+        this.passwordResetService = passwordResetService;
+        this.smsCodeService = smsCodeService;
+        this.currentUserProvider = currentUserProvider;
+    }
 
     @Operation(summary = "用户列表查询")
     @GetMapping
-    public ApiResponse<List<SysUser>> list(
-            @Parameter(description = "用户名(手机号)") @RequestParam(value = "username", required = false) String username,
-            @Parameter(description = "角色") @RequestParam(value = "role", required = false) UserRole role,
-            @Parameter(description = "状态") @RequestParam(value = "status", required = false) Integer status) {
-        return ApiResponse.success(sysUserService.listByFilter(username, role, status));
+    public ApiResponse<PageResponse<SysUser>> list(UserPageQuery query) {
+        if (query == null) {
+            query = new UserPageQuery();
+        }
+        return ApiResponse.success(sysUserService.pageByFilter(
+                query.getUsername(), query.getRole(), query.getStatus(), query));
     }
 
     @Operation(summary = "用户详情")
@@ -92,16 +99,16 @@ public class SysUserController {
     @PutMapping("/{id}")
     public ApiResponse<SysUser> update(@Parameter(description = "用户ID") @PathVariable("id") Long id,
                                        @Valid @RequestBody SysUserUpdateRequest request) {
-        JwtUser currentUser = getCurrentUser();
+        JwtUser currentUser = currentUserProvider.getCurrentUserOrThrow();
         SysUser targetUser = sysUserService.getById(id);
         if (targetUser == null) {
-            throw new RuntimeException("用户不存在");
+            throw BusinessException.notFound("用户不存在");
         }
         if (currentUser != null
                 && currentUser.getRole() == UserRole.ADMIN
                 && targetUser.getRole() == UserRole.ADMIN
                 && (currentUser.getUserId() == null || !currentUser.getUserId().equals(id))) {
-            throw new RuntimeException("管理员不能修改其他管理员账号");
+            throw BusinessException.forbidden("管理员不能修改其他管理员账号");
         }
         if (currentUser != null
                 && currentUser.getUserId() != null
@@ -109,7 +116,7 @@ public class SysUserController {
                 && currentUser.getRole() == UserRole.ADMIN
                 && request.getRole() != null
                 && request.getRole() != UserRole.ADMIN) {
-            throw new RuntimeException("管理员不能修改自己的角色");
+            throw BusinessException.forbidden("管理员不能修改自己的角色");
         }
         SysUser user = new SysUser();
         user.setId(id);
@@ -125,13 +132,12 @@ public class SysUserController {
     @Operation(summary = "删除用户")
     @DeleteMapping("/{id}")
     public ApiResponse<Boolean> delete(@Parameter(description = "用户ID") @PathVariable("id") Long id) {
-        JwtUser currentUser = getCurrentUser();
         SysUser targetUser = sysUserService.getById(id);
         if (targetUser == null) {
-            throw new RuntimeException("用户不存在");
+            throw BusinessException.notFound("用户不存在");
         }
         if (targetUser.getRole() == UserRole.ADMIN) {
-            throw new RuntimeException("管理员账号不允许删除");
+            throw BusinessException.forbidden("管理员账号不允许删除");
         }
         return ApiResponse.success("删除成功", sysUserService.deleteUser(id));
     }
@@ -163,10 +169,7 @@ public class SysUserController {
     @Operation(summary = "刷新登录 token")
     @PostMapping("/refresh")
     public ApiResponse<SysUserTokenResponse> refresh() {
-        JwtUser currentUser = getCurrentUser();
-        if (currentUser == null) {
-            throw new RuntimeException("未登录或登录已过期");
-        }
+        JwtUser currentUser = currentUserProvider.getCurrentUserOrThrow();
         String token = jwtUtil.generateToken(currentUser);
         return ApiResponse.success("刷新成功", new SysUserTokenResponse(token));
     }
@@ -527,11 +530,4 @@ public class SysUserController {
         }
     }
 
-    private JwtUser getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof JwtUser)) {
-            return null;
-        }
-        return (JwtUser) authentication.getPrincipal();
-    }
 }

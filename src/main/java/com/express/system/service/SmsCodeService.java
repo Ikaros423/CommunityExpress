@@ -1,6 +1,7 @@
 package com.express.system.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.express.system.common.exception.BusinessException;
 import com.express.system.entity.SysUser;
 import com.express.system.entity.enums.SmsBizType;
 import com.express.system.mapper.SysUserMapper;
@@ -33,10 +34,10 @@ public class SmsCodeService {
     public String requestCode(String phone, SmsBizType bizType) {
         String normalizedPhone = safeTrim(phone);
         if (normalizedPhone == null || normalizedPhone.isBlank()) {
-            throw new RuntimeException("手机号不能为空");
+            throw BusinessException.badRequest("手机号不能为空");
         }
         if (bizType == null) {
-            throw new RuntimeException("验证码业务类型不能为空");
+            throw BusinessException.badRequest("验证码业务类型不能为空");
         }
 
         validatePhoneByBizType(normalizedPhone, bizType);
@@ -52,31 +53,31 @@ public class SmsCodeService {
         String normalizedPhone = safeTrim(phone);
         String normalizedCode = safeTrim(code);
         if (normalizedPhone == null || normalizedPhone.isBlank()) {
-            throw new RuntimeException("手机号不能为空");
+            throw BusinessException.badRequest("手机号不能为空");
         }
         if (bizType == null) {
-            throw new RuntimeException("验证码业务类型不能为空");
+            throw BusinessException.badRequest("验证码业务类型不能为空");
         }
         if (normalizedCode == null || normalizedCode.isBlank()) {
-            throw new RuntimeException("验证码不能为空");
+            throw BusinessException.badRequest("验证码不能为空");
         }
 
         String key = buildKey(normalizedPhone, bizType);
         SmsCodeRecord record = codeStore.get(key);
         if (record == null) {
-            throw new RuntimeException("验证码不存在或已过期");
+            throw BusinessException.badRequest("验证码不存在或已过期");
         }
         if (record.isExpired()) {
             codeStore.remove(key);
-            throw new RuntimeException("验证码已过期");
+            throw BusinessException.badRequest("验证码已过期");
         }
         if (record.attempts >= MAX_ATTEMPTS) {
             codeStore.remove(key);
-            throw new RuntimeException("验证码尝试次数过多");
+            throw BusinessException.badRequest("验证码尝试次数过多");
         }
         if (!record.code.equals(normalizedCode)) {
             record.attempts++;
-            throw new RuntimeException("验证码错误");
+            throw BusinessException.badRequest("验证码错误");
         }
 
         codeStore.remove(key);
@@ -90,16 +91,16 @@ public class SmsCodeService {
         );
         if (bizType == SmsBizType.REGISTER) {
             if (user != null) {
-                throw new RuntimeException("手机号已注册");
+                throw BusinessException.badRequest("手机号已注册");
             }
             return;
         }
         if (bizType == SmsBizType.PASSWORD_RESET) {
             if (user == null) {
-                throw new RuntimeException("手机号不存在");
+                throw BusinessException.badRequest("手机号不存在");
             }
             if (user.getStatus() != null && user.getStatus() == 0) {
-                throw new RuntimeException("账号已被禁用");
+                throw BusinessException.badRequest("账号已被禁用");
             }
         }
     }

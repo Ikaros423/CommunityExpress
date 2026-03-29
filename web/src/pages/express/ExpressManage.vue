@@ -101,12 +101,12 @@
 import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import { NButton, useMessage } from 'naive-ui';
 import { api } from '../../api';
+import { usePagedTable } from '../../composables/usePagedTable';
 import { buildRequiredSelectRule, PHONE_REGEX } from '../../constants/validation';
 import { useAuthStore } from '../../stores/auth';
+import { formatDateTime, formatLabel, toTrimmedOrUndefined } from '../../utils/format';
 
 const message = useMessage();
-const rows = ref([]);
-const loading = ref(false);
 const updating = ref(false);
 const relocating = ref(false);
 const deletingId = ref(null);
@@ -114,14 +114,6 @@ const checkoutingId = ref(null);
 const claiming = ref(false);
 const auth = useAuthStore();
 const isStaffOrAdmin = computed(() => ['STAFF', 'ADMIN'].includes(auth.role));
-const pagination = reactive({
-  page: 1,
-  pageSize: 15,
-  showSizePicker: false,
-  onChange: (page) => {
-    pagination.page = page;
-  }
-});
 const filters = reactive({
   trackingNumber: '',
   receiverPhone: '',
@@ -150,8 +142,8 @@ const overdueOptions = [
 const sizeOptions = [
   { label: '标准', value: 0 },
   { label: '大件', value: 1 },
-  { label: '易碎', value: 2 },
-  { label: '冷链', value: 3 }
+  { label: '冷链', value: 2 },
+  { label: '易碎', value: 3 }
 ];
 
 const statusLabelMap = {
@@ -161,8 +153,7 @@ const statusLabelMap = {
   3: '已退回'
 };
 
-const getStatusLabel = (value) => statusLabelMap[value] ?? String(value ?? '-');
-const formatDateTime = (value) => (value ? String(value).replace('T', ' ') : '-');
+const getStatusLabel = (value) => formatLabel(statusLabelMap, value);
 const parseDateTime = (value) => {
   if (!value) {
     return null;
@@ -248,34 +239,42 @@ const claimRules = {
   }
 };
 
+const buildQueryParams = () => ({
+  trackingNumber: toTrimmedOrUndefined(filters.trackingNumber),
+  receiverPhone: isStaffOrAdmin.value ? toTrimmedOrUndefined(filters.receiverPhone) : undefined,
+  status: filters.status ?? undefined,
+  overdueOnly: isStaffOrAdmin.value && filters.overdueOnly ? true : undefined
+});
+
+const {
+  rows,
+  loading,
+  pagination,
+  fetchList: fetchPage,
+  search: searchPage
+} = usePagedTable(({ page, pageSize }) => api.listExpresses({
+  ...buildQueryParams(),
+  page,
+  pageSize
+}));
+
 const fetchList = async () => {
   try {
-    loading.value = true;
-    const trackingNumber = filters.trackingNumber.trim() || undefined;
-    const receiverPhone = isStaffOrAdmin.value
-      ? (filters.receiverPhone.trim() || undefined)
-      : (auth.user?.username || undefined);
-    const res = await api.listExpresses({
-      trackingNumber,
-      receiverPhone,
-      status: filters.status ?? undefined,
-      overdueOnly: isStaffOrAdmin.value && filters.overdueOnly ? true : undefined
-    });
-    rows.value = res.data || [];
-    pagination.page = 1;
+    await searchPage();
   } catch (err) {
     return;
-  } finally {
-    loading.value = false;
   }
 };
 
 const handleDelete = async (row) => {
+  if (!window.confirm(`确认删除快递 ${row.trackingNumber} 吗？`)) {
+    return;
+  }
   try {
     deletingId.value = row.id;
     await api.deleteExpress(row.id);
     message.success('删除成功');
-    await fetchList();
+    await fetchPage();
   } catch (err) {
     return;
   } finally {
@@ -323,7 +322,7 @@ const handleUpdate = async () => {
     await api.updateExpress(editForm.id, payload);
     message.success('更新成功');
     showEdit.value = false;
-    await fetchList();
+    await fetchPage();
   } catch (err) {
     if (err?.errors) {
       return;
@@ -345,7 +344,7 @@ const handleRelocate = async () => {
     });
     message.success('换柜成功');
     showRelocate.value = false;
-    await fetchList();
+    await fetchPage();
   } catch (err) {
     if (err?.errors) {
       return;
@@ -361,7 +360,7 @@ const handleCheckout = async (row) => {
     checkoutingId.value = row.id;
     await api.checkOut(row.trackingNumber);
     message.success('出库成功');
-    await fetchList();
+    await fetchPage();
   } catch (err) {
     return;
   } finally {
@@ -385,7 +384,7 @@ const handleClaim = async () => {
     message.success('添加成功');
     showClaim.value = false;
     resetClaimForm();
-    await fetchList();
+    await fetchPage();
   } catch (err) {
     if (err?.errors) {
       return;

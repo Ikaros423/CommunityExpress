@@ -5,14 +5,11 @@ import com.express.system.dto.DashboardRanksVO;
 import com.express.system.dto.DashboardSummaryVO;
 import com.express.system.dto.DashboardTrendPointVO;
 import com.express.system.entity.enums.UserRole;
-import com.express.system.security.JwtUser;
+import com.express.system.security.CurrentUserProvider;
 import com.express.system.service.IDashboardService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,8 +22,14 @@ import java.util.List;
 @Tag(name = "数据看板")
 public class DashboardController {
 
-    @Autowired
-    private IDashboardService dashboardService;
+    private final IDashboardService dashboardService;
+    private final CurrentUserProvider currentUserProvider;
+
+    public DashboardController(IDashboardService dashboardService,
+                               CurrentUserProvider currentUserProvider) {
+        this.dashboardService = dashboardService;
+        this.currentUserProvider = currentUserProvider;
+    }
 
     @Operation(summary = "看板核心指标")
     @GetMapping("/summary")
@@ -52,20 +55,6 @@ public class DashboardController {
     }
 
     private void ensureStaffOrAdmin() {
-        JwtUser currentUser = getCurrentUser();
-        if (currentUser == null) {
-            throw new RuntimeException("未登录或登录已过期");
-        }
-        if (currentUser.getRole() != UserRole.STAFF && currentUser.getRole() != UserRole.ADMIN) {
-            throw new RuntimeException("仅员工或管理员可查看数据看板");
-        }
-    }
-
-    private JwtUser getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof JwtUser)) {
-            return null;
-        }
-        return (JwtUser) authentication.getPrincipal();
+        currentUserProvider.requireRole(UserRole.STAFF, UserRole.ADMIN);
     }
 }

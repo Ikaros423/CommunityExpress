@@ -1,13 +1,15 @@
 package com.express.system.controller;
 
 import com.express.system.common.ApiResponse;
+import com.express.system.common.exception.BusinessException;
+import com.express.system.common.page.PageResponse;
 import com.express.system.dto.ShelfLoadVO;
+import com.express.system.dto.query.ShelfPageQuery;
 import com.express.system.entity.ShelfInfo;
 import com.express.system.service.IShelfInfoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,18 +35,20 @@ import java.util.List;
 @Tag(name = "货架管理")
 public class ShelfInfoController {
 
-    @Autowired
-    private IShelfInfoService shelfInfoService;
+    private final IShelfInfoService shelfInfoService;
+
+    public ShelfInfoController(IShelfInfoService shelfInfoService) {
+        this.shelfInfoService = shelfInfoService;
+    }
 
     @Operation(summary = "货架列表查询")
     @GetMapping
-    public ApiResponse<List<ShelfInfo>> list(
-            @Parameter(description = "货架类型") @RequestParam(value = "shelfType", required = false) Integer shelfType,
-            @Parameter(description = "货架状态") @RequestParam(value = "status", required = false) Integer status,
-            @Parameter(description = "货架编号") @RequestParam(value = "shelfCode", required = false) Integer shelfCode,
-            @Parameter(description = "货架层数") @RequestParam(value = "shelfLayer", required = false) Integer shelfLayer) {
-        return ApiResponse.success(shelfInfoService.listByFilter(
-                shelfType, status, shelfCode, shelfLayer));
+    public ApiResponse<PageResponse<ShelfInfo>> list(ShelfPageQuery query) {
+        if (query == null) {
+            query = new ShelfPageQuery();
+        }
+        return ApiResponse.success(shelfInfoService.pageByFilter(
+                query.getShelfType(), query.getStatus(), query.getShelfCode(), query.getShelfLayer(), query));
     }
 
     @Operation(summary = "货架负载查询")
@@ -70,7 +74,7 @@ public class ShelfInfoController {
                                               @Parameter(description = "货架层数") @RequestParam("shelfLayer") Integer shelfLayer) {
         ShelfInfo shelf = shelfInfoService.getByCodeAndLayer(shelfCode, shelfLayer);
         if (shelf == null) {
-            throw new RuntimeException("货架不存在");
+            throw BusinessException.badRequest("货架不存在");
         }
         return ApiResponse.success(shelf);
     }
@@ -80,7 +84,7 @@ public class ShelfInfoController {
     public ApiResponse<ShelfInfo> recommend(@Parameter(description = "快递尺寸类型") @RequestParam("sizeType") Integer sizeType) {
         ShelfInfo shelf = shelfInfoService.getRecommendShelf(sizeType);
         if (shelf == null) {
-            throw new RuntimeException("没有可用货架");
+            throw BusinessException.badRequest("没有可用货架");
         }
         return ApiResponse.success(shelf);
     }

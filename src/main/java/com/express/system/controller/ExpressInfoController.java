@@ -1,28 +1,26 @@
 package com.express.system.controller;
 
 import com.express.system.common.ApiResponse;
+import com.express.system.common.exception.BusinessException;
+import com.express.system.common.page.PageResponse;
+import com.express.system.dto.query.ExpressPageQuery;
 import com.express.system.entity.ExpressInfo;
 import com.express.system.entity.enums.UserRole;
+import com.express.system.security.CurrentUserProvider;
 import com.express.system.security.JwtUser;
 import com.express.system.service.IExpressInfoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 /**
  * <p>
@@ -37,30 +35,34 @@ import java.util.List;
 @Tag(name = "快递管理")
 public class ExpressInfoController {
 
-    @Autowired
-    private IExpressInfoService expressInfoService;
+    private final IExpressInfoService expressInfoService;
+    private final CurrentUserProvider currentUserProvider;
+
+    public ExpressInfoController(IExpressInfoService expressInfoService,
+                                 CurrentUserProvider currentUserProvider) {
+        this.expressInfoService = expressInfoService;
+        this.currentUserProvider = currentUserProvider;
+    }
 
     @Operation(summary = "快递列表查询")
     @GetMapping
-    public ApiResponse<List<ExpressInfo>> list(
-            @Parameter(description = "快递单号") @RequestParam(value = "trackingNumber", required = false) String trackingNumber,
-            @Parameter(description = "收件人手机号") @RequestParam(value = "receiverPhone", required = false) String receiverPhone,
-            @Parameter(description = "状态") @RequestParam(value = "status", required = false) Integer status,
-            @Parameter(description = "货架编号") @RequestParam(value = "shelfCode", required = false) Integer shelfCode,
-            @Parameter(description = "货架层数") @RequestParam(value = "shelfLayer", required = false) Integer shelfLayer,
-            @Parameter(description = "快递尺寸类型") @RequestParam(value = "sizeType", required = false) Integer sizeType,
-            @Parameter(description = "是否仅查询滞留快递") @RequestParam(value = "overdueOnly", required = false) Boolean overdueOnly) {
-        JwtUser currentUser = getCurrentUser();
+    public ApiResponse<PageResponse<ExpressInfo>> list(ExpressPageQuery query) {
+        if (query == null) {
+            query = new ExpressPageQuery();
+        }
+        JwtUser currentUser = currentUserProvider.getCurrentUserOrNull();
         if (currentUser != null && currentUser.getRole() == UserRole.USER) {
             String phone = currentUser.getUsername();
             if (phone == null || phone.isBlank()) {
-                throw new RuntimeException("当前用户未绑定手机号");
+                throw BusinessException.badRequest("当前用户未绑定手机号");
             }
-            return ApiResponse.success(expressInfoService.listForUser(
-                    currentUser.getUserId(), phone, trackingNumber, status, false));
+            return ApiResponse.success(expressInfoService.pageForUser(
+                    currentUser.getUserId(), phone, query.getTrackingNumber(), query.getStatus(),
+                    query.getOverdueOnly(), query));
         }
-        return ApiResponse.success(expressInfoService.listByFilter(
-                trackingNumber, receiverPhone, status, shelfCode, shelfLayer, sizeType, overdueOnly));
+        return ApiResponse.success(expressInfoService.pageByFilter(
+                query.getTrackingNumber(), query.getReceiverPhone(), query.getStatus(),
+                query.getShelfCode(), query.getShelfLayer(), query.getSizeType(), query.getOverdueOnly(), query));
     }
 
     @Operation(summary = "快递详情")
@@ -68,7 +70,7 @@ public class ExpressInfoController {
     public ApiResponse<ExpressInfo> detail(@Parameter(description = "快递ID") @PathVariable("id") Long id) {
         ExpressInfo info = expressInfoService.getById(id);
         if (info == null) {
-            throw new RuntimeException("快递不存在");
+            throw BusinessException.notFound("快递不存在");
         }
         return ApiResponse.success(info);
     }
@@ -82,27 +84,22 @@ public class ExpressInfoController {
     @Operation(summary = "快递出库")
     @PostMapping("/{trackingNumber}/checkout")
     public ApiResponse<Boolean> checkOut(@Parameter(description = "快递单号") @PathVariable("trackingNumber") String trackingNumber) {
-        JwtUser currentUser = getCurrentUser();
-        String operatorPhone = currentUser == null ? null : currentUser.getUsername();
+        JwtUser currentUser = currentUserProvider.getCurrentUserOrThrow();
+        String operatorPhone = currentUser.getUsername();
         if (operatorPhone == null || operatorPhone.isBlank()) {
-            throw new RuntimeException("当前用户未绑定手机号");
+            throw BusinessException.badRequest("当前用户未绑定手机号");
         }
-        UserRole role = currentUser == null ? null : currentUser.getRole();
-        Long operatorUserId = currentUser == null ? null : currentUser.getUserId();
-        expressInfoService.checkOut(trackingNumber, operatorPhone, role, operatorUserId);
+        expressInfoService.checkOut(trackingNumber, operatorPhone, currentUser.getRole(), currentUser.getUserId());
         return ApiResponse.success("取件成功", true);
     }
 
     @Operation(summary = "用户按单号与收件人手机号添加包裹")
     @PostMapping("/claim")
     public ApiResponse<ExpressInfo> claim(@RequestBody ExpressClaimRequest request) {
-        JwtUser currentUser = getCurrentUser();
-        if (currentUser == null || currentUser.getRole() != UserRole.USER) {
-            throw new RuntimeException("仅普通用户可添加包裹");
-        }
+        JwtUser currentUser = currentUserProvider.requireRole(UserRole.USER);
         String userPhone = currentUser.getUsername();
         if (userPhone == null || userPhone.isBlank()) {
-            throw new RuntimeException("当前用户未绑定手机号");
+            throw BusinessException.badRequest("当前用户未绑定手机号");
         }
         ExpressInfo expressInfo = expressInfoService.claimForUser(
                 currentUser.getUserId(), userPhone, request.getTrackingNumber(), request.getReceiverPhone());
@@ -284,13 +281,5 @@ public class ExpressInfoController {
         public void setReceiverPhone(String receiverPhone) {
             this.receiverPhone = receiverPhone;
         }
-    }
-
-    private JwtUser getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof JwtUser)) {
-            return null;
-        }
-        return (JwtUser) authentication.getPrincipal();
     }
 }
