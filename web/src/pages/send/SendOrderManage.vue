@@ -59,29 +59,20 @@
 import { computed, h, onMounted, reactive, ref } from 'vue';
 import { NButton, useMessage } from 'naive-ui';
 import { api } from '../../api';
+import { usePagedTable } from '../../composables/usePagedTable';
 import { buildRequiredSelectRule, PHONE_RULE } from '../../constants/validation';
 import { useAuthStore } from '../../stores/auth';
+import { formatDateTime, formatLabel, toTrimmedOrUndefined } from '../../utils/format';
 
 const message = useMessage();
 const auth = useAuthStore();
 
-const rows = ref([]);
-const loading = ref(false);
 const creating = ref(false);
 const updatingId = ref(null);
 const createFormRef = ref(null);
 
 const isUser = computed(() => auth.role === 'USER');
 const isStaffOrAdmin = computed(() => ['STAFF', 'ADMIN'].includes(auth.role));
-
-const pagination = reactive({
-  page: 1,
-  pageSize: 15,
-  showSizePicker: false,
-  onChange: (page) => {
-    pagination.page = page;
-  }
-});
 
 const filters = reactive({
   status: null,
@@ -136,9 +127,21 @@ const createRules = {
   packageType: buildRequiredSelectRule('包裹类型不能为空')
 };
 
-const getStatusLabel = (value) => statusLabelMap[value] ?? String(value ?? '-');
-const getPackageTypeLabel = (value) => packageTypeLabelMap[value] ?? String(value ?? '-');
-const formatDateTime = (value) => (value ? String(value).replace('T', ' ') : '-');
+const getStatusLabel = (value) => formatLabel(statusLabelMap, value);
+const getPackageTypeLabel = (value) => formatLabel(packageTypeLabelMap, value);
+
+const {
+  rows,
+  loading,
+  pagination,
+  fetchList: fetchPage,
+  search: searchPage
+} = usePagedTable(({ page, pageSize }) => api.listSendOrders({
+  status: filters.status ?? undefined,
+  senderPhone: isStaffOrAdmin.value ? toTrimmedOrUndefined(filters.senderPhone) : undefined,
+  page,
+  pageSize
+}));
 
 const resetCreateForm = () => {
   createForm.senderPhone = auth.user?.username || '';
@@ -152,17 +155,9 @@ const resetCreateForm = () => {
 
 const fetchList = async () => {
   try {
-    loading.value = true;
-    const res = await api.listSendOrders({
-      status: filters.status ?? undefined,
-      senderPhone: isStaffOrAdmin.value ? (filters.senderPhone.trim() || undefined) : undefined
-    });
-    rows.value = res.data || [];
-    pagination.page = 1;
+    await searchPage();
   } catch (err) {
     return;
-  } finally {
-    loading.value = false;
   }
 };
 
@@ -180,7 +175,7 @@ const handleCreate = async () => {
     });
     message.success('提交成功');
     resetCreateForm();
-    await fetchList();
+    await fetchPage();
   } catch (err) {
     if (err?.errors) {
       return;
@@ -192,11 +187,14 @@ const handleCreate = async () => {
 };
 
 const handleUpdateStatus = async (row, status) => {
+  if (status === 3 && !window.confirm(`确认取消寄件申请 #${row.id} 吗？`)) {
+    return;
+  }
   try {
     updatingId.value = row.id;
     await api.updateSendOrderStatus(row.id, { status });
     message.success('状态更新成功');
-    await fetchList();
+    await fetchPage();
   } catch (err) {
     return;
   } finally {

@@ -5,7 +5,7 @@
       <div class="flex">
         <n-input v-model:value="filters.username" placeholder="手机号" />
         <n-select v-model:value="filters.role" :options="roleOptions" placeholder="角色" />
-        <n-button type="primary" @click="fetchList">查询</n-button>
+        <n-button type="primary" :loading="loading" @click="fetchList">查询</n-button>
         <n-button type="primary" @click="openCreate">新增用户</n-button>
       </div>
       <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" :pagination="pagination" />
@@ -59,7 +59,7 @@
           </n-form-item>
           <div class="flex">
             <n-button @click="showEdit = false">取消</n-button>
-            <n-button type="primary" @click="handleUpdate">保存</n-button>
+            <n-button type="primary" :loading="updating" @click="handleUpdate">保存</n-button>
           </div>
         </n-form>
         <n-text depth="3">提示：管理员不能修改其他管理员账号，也不能修改自己的角色。</n-text>
@@ -72,20 +72,14 @@
 import { h, onMounted, reactive, ref } from 'vue';
 import { NButton, useMessage } from 'naive-ui';
 import { api } from '../../api';
+import { usePagedTable } from '../../composables/usePagedTable';
 import { buildRequiredSelectRule, PASSWORD_RULE, PHONE_RULE } from '../../constants/validation';
+import { formatLabel, toTrimmedOrUndefined } from '../../utils/format';
 
 const message = useMessage();
-const rows = ref([]);
-const loading = ref(false);
 const creating = ref(false);
-const pagination = reactive({
-  page: 1,
-  pageSize: 15,
-  showSizePicker: false,
-  onChange: (page) => {
-    pagination.page = page;
-  }
-});
+const updating = ref(false);
+const deletingId = ref(null);
 
 const filters = reactive({
   username: '',
@@ -142,19 +136,35 @@ const createRules = {
   role: buildRequiredSelectRule('角色不能为空')
 };
 
+const roleLabelMap = {
+  ADMIN: '管理员',
+  STAFF: '员工',
+  USER: '用户'
+};
+
+const statusLabelMap = {
+  0: '禁用',
+  1: '正常'
+};
+
+const {
+  rows,
+  loading,
+  pagination,
+  fetchList: fetchPage,
+  search: searchPage
+} = usePagedTable(({ page, pageSize }) => api.listUsers({
+  username: toTrimmedOrUndefined(filters.username),
+  role: filters.role || undefined,
+  page,
+  pageSize
+}));
+
 const fetchList = async () => {
   try {
-    loading.value = true;
-    const res = await api.listUsers({
-      username: filters.username || undefined,
-      role: filters.role || undefined
-    });
-    rows.value = res.data || [];
-    pagination.page = 1;
+    await searchPage();
   } catch (err) {
-    message.error(err?.message || '查询失败');
-  } finally {
-    loading.value = false;
+    return;
   }
 };
 
@@ -209,6 +219,7 @@ const openEdit = (row) => {
 
 const handleUpdate = async () => {
   try {
+    updating.value = true;
     await editFormRef.value?.validate();
     const payload = {
       username: editForm.username,
@@ -221,22 +232,30 @@ const handleUpdate = async () => {
     await api.updateUser(editForm.id, payload);
     message.success('更新成功');
     showEdit.value = false;
-    fetchList();
+    await fetchPage();
   } catch (err) {
     if (err?.errors) {
       return;
     }
-    message.error(err?.message || '更新失败');
+    return;
+  } finally {
+    updating.value = false;
   }
 };
 
 const handleDelete = async (row) => {
+  if (!window.confirm(`确认删除用户 ${row.username} 吗？`)) {
+    return;
+  }
   try {
+    deletingId.value = row.id;
     await api.deleteUser(row.id);
     message.success('删除成功');
-    fetchList();
+    await fetchPage();
   } catch (err) {
-    message.error(err?.message || '删除失败');
+    return;
+  } finally {
+    deletingId.value = null;
   }
 };
 
@@ -244,8 +263,20 @@ const columns = [
   { title: 'ID', key: 'id' },
   { title: '手机号', key: 'username' },
   { title: '昵称', key: 'nickname' },
-  { title: '角色', key: 'role' },
-  { title: '状态', key: 'status' },
+  {
+    title: '角色',
+    key: 'role',
+    render(row) {
+      return formatLabel(roleLabelMap, row.role);
+    }
+  },
+  {
+    title: '状态',
+    key: 'status',
+    render(row) {
+      return formatLabel(statusLabelMap, row.status);
+    }
+  },
   {
     title: '操作',
     key: 'actions',
@@ -258,7 +289,7 @@ const columns = [
         ),
         h(
           NButton,
-          { size: 'small', type: 'error', onClick: () => handleDelete(row) },
+          { size: 'small', type: 'error', loading: deletingId.value === row.id, onClick: () => handleDelete(row) },
           { default: () => '删除' }
         )
       ];
