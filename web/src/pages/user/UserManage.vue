@@ -8,7 +8,7 @@
         <n-button type="primary" @click="fetchList">查询</n-button>
         <n-button type="primary" @click="openCreate">新增用户</n-button>
       </div>
-      <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" />
+      <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" :pagination="pagination" />
     </div>
 
     <n-modal v-model:show="showCreate">
@@ -78,6 +78,14 @@ const message = useMessage();
 const rows = ref([]);
 const loading = ref(false);
 const creating = ref(false);
+const pagination = reactive({
+  page: 1,
+  pageSize: 15,
+  showSizePicker: false,
+  onChange: (page) => {
+    pagination.page = page;
+  }
+});
 
 const filters = reactive({
   username: '',
@@ -142,6 +150,7 @@ const fetchList = async () => {
       role: filters.role || undefined
     });
     rows.value = res.data || [];
+    pagination.page = 1;
   } catch (err) {
     message.error(err?.message || '查询失败');
   } finally {

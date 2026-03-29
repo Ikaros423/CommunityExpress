@@ -10,9 +10,16 @@
           placeholder="收件人手机号(员工/管理员)"
         />
         <n-select v-model:value="filters.status" :options="statusOptions" placeholder="状态" style="min-width: 140px" />
+        <n-select
+          v-if="isStaffOrAdmin"
+          v-model:value="filters.overdueOnly"
+          :options="overdueOptions"
+          placeholder="滞留筛选"
+          style="min-width: 140px"
+        />
         <n-button type="primary" :loading="loading" @click="fetchList">查询</n-button>
       </div>
-      <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" />
+      <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" :pagination="pagination" />
     </div>
 
     <n-modal v-model:show="showEdit">
@@ -72,7 +79,7 @@
 </template>
 
 <script setup>
-import { computed, h, onMounted, reactive, ref } from 'vue';
+import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import { NButton, useMessage } from 'naive-ui';
 import { api } from '../../api';
 import { buildRequiredSelectRule, PHONE_REGEX } from '../../constants/validation';
@@ -87,17 +94,37 @@ const deletingId = ref(null);
 const checkoutingId = ref(null);
 const auth = useAuthStore();
 const isStaffOrAdmin = computed(() => ['STAFF', 'ADMIN'].includes(auth.role));
+const pagination = reactive({
+  page: 1,
+  pageSize: 15,
+  showSizePicker: false,
+  onChange: (page) => {
+    pagination.page = page;
+  }
+});
 const filters = reactive({
   trackingNumber: '',
   receiverPhone: '',
-  status: null
+  status: null,
+  overdueOnly: false
 });
+
+const applyUserDefaultFilters = () => {
+  if (auth.role === 'USER' && filters.status == null) {
+    filters.status = 1;
+  }
+};
 
 const statusOptions = [
   { label: '待入库', value: 0 },
   { label: '待取件', value: 1 },
   { label: '已取件', value: 2 },
   { label: '已退回', value: 3 }
+];
+
+const overdueOptions = [
+  { label: '全部', value: false },
+  { label: '仅滞留(48h+)', value: true }
 ];
 
 const sizeOptions = [
@@ -116,6 +143,34 @@ const statusLabelMap = {
 
 const getStatusLabel = (value) => statusLabelMap[value] ?? String(value ?? '-');
 const formatDateTime = (value) => (value ? String(value).replace('T', ' ') : '-');
+const parseDateTime = (value) => {
+  if (!value) {
+    return null;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed;
+};
+const getOverdueDays = (row) => {
+  if (row?.status !== 1) {
+    return null;
+  }
+  const createdAt = parseDateTime(row.createTime);
+  if (!createdAt) {
+    return null;
+  }
+  const elapsedMs = Date.now() - createdAt.getTime();
+  if (elapsedMs < 48 * 60 * 60 * 1000) {
+    return null;
+  }
+  return Math.max(2, Math.floor(elapsedMs / (24 * 60 * 60 * 1000)));
+};
+const getOverdueLabel = (row) => {
+  const overdueDays = getOverdueDays(row);
+  return overdueDays == null ? '-' : `已滞留 ${overdueDays} 天`;
+};
 
 const showEdit = ref(false);
 const editFormRef = ref(null);
@@ -167,9 +222,11 @@ const fetchList = async () => {
     const res = await api.listExpresses({
       trackingNumber,
       receiverPhone,
-      status: filters.status ?? undefined
+      status: filters.status ?? undefined,
+      overdueOnly: isStaffOrAdmin.value && filters.overdueOnly ? true : undefined
     });
     rows.value = res.data || [];
+    pagination.page = 1;
   } catch (err) {
     return;
   } finally {
@@ -293,6 +350,13 @@ const columns = computed(() => {
       }
     },
     {
+      title: '滞留状态',
+      key: 'overdue',
+      render(row) {
+        return getOverdueLabel(row);
+      }
+    },
+    {
       title: '创建时间',
       key: 'createTime',
       render(row) {
@@ -363,5 +427,16 @@ const columns = computed(() => {
   ];
 });
 
-onMounted(fetchList);
+watch(
+  () => auth.role,
+  () => {
+    applyUserDefaultFilters();
+  },
+  { immediate: true }
+);
+
+onMounted(() => {
+  applyUserDefaultFilters();
+  fetchList();
+});
 </script>

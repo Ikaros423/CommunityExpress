@@ -61,6 +61,7 @@ public interface IExpressInfoService extends IService<ExpressInfo> {
      * @param shelfCode 货架编号
      * @param shelfLayer 货架层
      * @param sizeType 快递规格
+     * @param overdueOnly 是否仅查询滞留快递（超过48小时未取）
      * @return 快递列表
      */
     java.util.List<ExpressInfo> listByFilter(String trackingNumber,
@@ -68,6 +69,7 @@ public interface IExpressInfoService extends IService<ExpressInfo> {
                                              Integer status,
                                              Integer shelfCode,
                                              Integer shelfLayer,
-                                             Integer sizeType);
+                                             Integer sizeType,
+                                             Boolean overdueOnly);
 
 }

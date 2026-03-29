@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -317,11 +318,14 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
                                           Integer status,
                                           Integer shelfCode,
                                           Integer shelfLayer,
-                                          Integer sizeType) {
+                                          Integer sizeType,
+                                          Boolean overdueOnly) {
         String normalizedTrackingNumber = safeTrim(trackingNumber);
         String normalizedReceiverPhone = safeTrim(receiverPhone);
+        boolean queryOverdueOnly = Boolean.TRUE.equals(overdueOnly);
+        LocalDateTime overdueThreshold = LocalDateTime.now().minus(48, ChronoUnit.HOURS);
         // 根据筛选条件动态构造查询。
-        return this.lambdaQuery()
+        var query = this.lambdaQuery()
                 .eq(status != null, ExpressInfo::getStatus, status)
                 .eq(shelfCode != null, ExpressInfo::getShelfCode, shelfCode)
                 .eq(shelfLayer != null, ExpressInfo::getShelfLayer, shelfLayer)
@@ -329,10 +333,18 @@ public class ExpressInfoServiceImpl extends ServiceImpl<ExpressInfoMapper, Expre
                 .like(normalizedTrackingNumber != null && !normalizedTrackingNumber.isBlank(),
                         ExpressInfo::getTrackingNumber, normalizedTrackingNumber)
                 .like(normalizedReceiverPhone != null && !normalizedReceiverPhone.isBlank(),
-                        ExpressInfo::getReceiverPhone, normalizedReceiverPhone)
-                .orderByDesc(ExpressInfo::getUpdateTime)
-                .orderByDesc(ExpressInfo::getCreateTime)
-                .list();
+                        ExpressInfo::getReceiverPhone, normalizedReceiverPhone);
+
+        if (queryOverdueOnly) {
+            query.eq(ExpressInfo::getStatus, 1)
+                    .le(ExpressInfo::getCreateTime, overdueThreshold)
+                    .orderByAsc(ExpressInfo::getCreateTime)
+                    .orderByAsc(ExpressInfo::getId);
+        } else {
+            query.orderByDesc(ExpressInfo::getUpdateTime)
+                    .orderByDesc(ExpressInfo::getCreateTime);
+        }
+        return query.list();
     }
 
     private String safeTrim(String value) {

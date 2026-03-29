@@ -10,7 +10,7 @@
         <n-button @click="resetFilters">重置</n-button>
         <n-button type="primary" @click="openCreate">新增货架</n-button>
       </div>
-      <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" />
+      <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" :pagination="pagination" />
     </div>
 
     <n-modal v-model:show="showCreate">
@@ -84,6 +84,14 @@ const loading = ref(false);
 const creating = ref(false);
 const updating = ref(false);
 const deletingId = ref(null);
+const pagination = reactive({
+  page: 1,
+  pageSize: 15,
+  showSizePicker: false,
+  onChange: (page) => {
+    pagination.page = page;
+  }
+});
 const filters = reactive({
   shelfCode: null,
   shelfLayer: null,
@@ -220,6 +228,7 @@ const fetchList = async () => {
       status: filters.status ?? undefined
     });
     rows.value = res.data || [];
+    pagination.page = 1;
   } catch (err) {
     return;
   } finally {

@@ -48,7 +48,8 @@ public class ExpressInfoController {
             @Parameter(description = "状态") @RequestParam(value = "status", required = false) Integer status,
             @Parameter(description = "货架编号") @RequestParam(value = "shelfCode", required = false) Integer shelfCode,
             @Parameter(description = "货架层数") @RequestParam(value = "shelfLayer", required = false) Integer shelfLayer,
-            @Parameter(description = "快递尺寸类型") @RequestParam(value = "sizeType", required = false) Integer sizeType) {
+            @Parameter(description = "快递尺寸类型") @RequestParam(value = "sizeType", required = false) Integer sizeType,
+            @Parameter(description = "是否仅查询滞留快递") @RequestParam(value = "overdueOnly", required = false) Boolean overdueOnly) {
         JwtUser currentUser = getCurrentUser();
         if (currentUser != null && currentUser.getRole() == UserRole.USER) {
             String phone = currentUser.getUsername();
@@ -56,10 +57,10 @@ public class ExpressInfoController {
                 throw new RuntimeException("当前用户未绑定手机号");
             }
             return ApiResponse.success(expressInfoService.listByFilter(
-                    trackingNumber, phone, status, null, null, null));
+                    trackingNumber, phone, status, null, null, null, false));
         }
         return ApiResponse.success(expressInfoService.listByFilter(
-                trackingNumber, receiverPhone, status, shelfCode, shelfLayer, sizeType));
+                trackingNumber, receiverPhone, status, shelfCode, shelfLayer, sizeType, overdueOnly));
     }
 
     @Operation(summary = "快递详情")
