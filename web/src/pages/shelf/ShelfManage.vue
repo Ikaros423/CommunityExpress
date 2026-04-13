@@ -10,7 +10,14 @@
         <n-button @click="resetFilters">重置</n-button>
         <n-button type="primary" @click="openCreate">新增货架</n-button>
       </div>
-      <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" :pagination="pagination" />
+      <n-data-table
+        remote
+        :columns="columns"
+        :data="rows"
+        :loading="loading"
+        :bordered="false"
+        :pagination="pagination"
+      />
     </div>
 
     <n-modal v-model:show="showCreate">

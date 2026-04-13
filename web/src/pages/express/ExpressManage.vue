@@ -20,7 +20,14 @@
         <n-button type="primary" :loading="loading" @click="fetchList">查询</n-button>
         <n-button v-if="auth.role === 'USER'" @click="showClaim = true">添加包裹</n-button>
       </div>
-      <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" :pagination="pagination" />
+      <n-data-table
+        remote
+        :columns="columns"
+        :data="rows"
+        :loading="loading"
+        :bordered="false"
+        :pagination="pagination"
+      />
     </div>
 
     <n-modal v-model:show="showClaim">
