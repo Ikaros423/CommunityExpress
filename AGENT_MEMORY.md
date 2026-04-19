@@ -26,6 +26,11 @@ Quick reference for project structure, API conventions, database schema, and ope
 - `src/main/java/com/express/system/dto/query`: 列表分页查询 DTO（express/shelf/send-order/user）。
 - `src/main/resources/application.properties`: datasource config.
 - `src/main/resources/sql/test_data_mysql8.sql`: test data script.
+- `src/main/resources/sql/test_data_shelf_info_20_mysql8.sql`: shelf_info 20条独立测试数据。
+- `src/main/resources/sql/test_data_sys_user_20_mysql8.sql`: sys_user 20条独立测试数据。
+- `src/main/resources/sql/test_data_send_order_10_mysql8.sql`: send_order 10条独立测试数据。
+- `src/main/resources/sql/test_data_express_info_100_mysql8.sql`: express_info 100条独立测试数据（`receiver_phone` 对齐 sys_user 手机号池）。
+- `src/main/resources/sql/run_all_test_data_mysql8.sql`: 一键导入入口脚本（按 shelf -> user -> send_order -> express 顺序）。
 - `CommunityExpress.postman_collection.json`: Postman collection with variables and auto-id scripts.
 - `web/`: Vue 3 前端（Vite + Naive UI + Pinia + Vue Router + Axios）。
 
@@ -147,7 +152,7 @@ Quick reference for project structure, API conventions, database schema, and ope
 - 角色路由：USER/STAFF/ADMIN，根据 JWT + 登录响应控制权限。
 - 页面模块：
   - 登录 / 注册 / 忘记密码（短信验证码）
-  - USER：快递查询、出库快捷入口、添加包裹（认领）
+  - USER：快递查询、出库快捷入口、添加包裹（认领）、首页待取件数量概览
   - STAFF：快递入库/换柜/管理，货架管理
   - ADMIN：用户管理（含角色限制）
   - USER/STAFF/ADMIN：寄件管理（`/send-orders`）
@@ -157,10 +162,12 @@ Quick reference for project structure, API conventions, database schema, and ope
 - 请求约定：统一 `ApiResponse`，`/system` 代理到后端；API 已对接到可直接演示。
 - 分页适配：新增 `web/src/utils/page.js` 与 `web/src/composables/usePagedTable.js`，统一将列表响应标准化为 `list/total/page/pageSize`，兼容数组与 `PageResponse`。
 - 列表页改造：`ExpressManage/ShelfManage/UserManage/SendOrderManage` 均已接入后端分页与远程翻页，筛选时自动回到第一页，分页切换保持筛选条件。
+- 分页翻页修复：四个管理页 `n-data-table` 已开启 `remote`，避免本地分页与后端分页叠加导致“无法翻页”。
 - 交互优化：列表请求带 loading；错误提示优先展示后端 message。
 - 用户端出库入口：快递查询页顶部提供单号出库输入框与按钮，仅 USER 可见。
 - 看板图表：ECharts 按需引入（`echarts/core`）；趋势图刷新后会自动校验并重建实例（DOM 变更时 dispose + re-init），修复“点击刷新后不显示”问题。
 - 安全交互：删除/取消类高风险动作已增加二次确认（快递删除、货架删除、用户删除、寄件取消）。
+- 用户首页概览：普通用户进入 `/` 会调用快递分页接口（`status=1`）并显示“当前待取快递 X 件”。
 
 ## Business Logic Notes
 ### Auth & exception refactor (2026-03-29)
@@ -234,6 +241,7 @@ Quick reference for project structure, API conventions, database schema, and ope
 - 趋势按天统计近 N 天（默认 7，最大 30），空日期补 0。
 - 滞留定义：`status=1 && create_time <= now-48h`。
 - 权限校验已收敛为 `CurrentUserProvider.requireRole(STAFF, ADMIN)`。
+- 前端首页角色分流：STAFF/ADMIN 显示管理看板；USER 显示欢迎信息 + 待取件数量（按当前账号可见范围统计）。
 
 ## Database Schema (from entities)
 ### `express_info`
@@ -294,6 +302,12 @@ Quick reference for project structure, API conventions, database schema, and ope
 ## Test Data
 - `src/main/resources/sql/test_data_mysql8.sql` seeds shelves/express/users/send_order/binding。
 - 已补充近 7 天入库/出库演示数据（`DB70000001` ~ `DB70000014`），用于管理看板趋势展示。
+- 新增分表测试数据脚本：
+  - `test_data_shelf_info_20_mysql8.sql`
+  - `test_data_sys_user_20_mysql8.sql`
+  - `test_data_send_order_10_mysql8.sql`
+  - `test_data_express_info_100_mysql8.sql`（收件手机号复用 `18888000001~18888000020`）。
+- 新增总入口：`run_all_test_data_mysql8.sql`（可一键按顺序导入四份分表数据）。
 
 ## Tests
 - Controller 单元测试使用 MockMvc + Mock Service，不依赖数据库。

@@ -50,7 +50,14 @@
         <n-button type="primary" :loading="loading" @click="fetchList">查询</n-button>
       </div>
 
-      <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" :pagination="pagination" />
+      <n-data-table
+        remote
+        :columns="columns"
+        :data="rows"
+        :loading="loading"
+        :bordered="false"
+        :pagination="pagination"
+      />
     </div>
   </div>
 </template>

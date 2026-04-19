@@ -4,6 +4,8 @@
       <div class="section-title">系统概览</div>
       <n-space vertical>
         <n-text>欢迎使用社区快递管理系统。</n-text>
+        <n-text>当前待取快递：{{ userPendingLoading ? '-' : formatNumber(userPendingCount) }} 件</n-text>
+        <n-text v-if="userPendingError" class="error-text">{{ userPendingError }}</n-text>
         <n-text>当前账号为用户角色，请在左侧导航查看“快递管理 / 寄件管理”。</n-text>
       </n-space>
     </div>
@@ -102,9 +104,12 @@ const isManager = computed(() => ['STAFF', 'ADMIN'].includes(auth.role));
 const summaryLoading = ref(false);
 const trendLoading = ref(false);
 const ranksLoading = ref(false);
+const userPendingLoading = ref(false);
 const summaryError = ref('');
 const trendError = ref('');
 const ranksError = ref('');
+const userPendingError = ref('');
+const userPendingCount = ref(0);
 
 const summary = ref({
   totalExpress: 0,
@@ -165,6 +170,20 @@ const overdueColumns = [
 const formatDateTime = (value) => (value ? String(value).replace('T', ' ') : '-');
 const formatNumber = (value) => Number(value || 0).toLocaleString('zh-CN');
 const formatPercent = (rate) => `${Math.round(Number(rate || 0) * 100)}%`;
+
+const fetchUserPendingCount = async () => {
+  userPendingLoading.value = true;
+  userPendingError.value = '';
+  try {
+    const res = await api.listExpresses({ status: 1, page: 1, pageSize: 15 });
+    userPendingCount.value = Number(res?.data?.total || 0);
+  } catch (err) {
+    userPendingCount.value = 0;
+    userPendingError.value = '待取数量加载失败';
+  } finally {
+    userPendingLoading.value = false;
+  }
+};
 
 const fetchSummary = async () => {
   summaryLoading.value = true;
@@ -275,7 +294,11 @@ const onResize = () => {
 watch(
   isManager,
   async (val) => {
-    if (!val || initialized.value) {
+    if (!val) {
+      await fetchUserPendingCount();
+      return;
+    }
+    if (initialized.value) {
       return;
     }
     initialized.value = true;
